@@ -730,13 +730,14 @@
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
                 const diamondX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
+                const gapCenterY = lastPipe.y + pipes.pipeHeight + pipes.gap/2;
                 const baseY = Math.max(0, Math.min(canvas.height - diamondManager.height,
                     lastPipe.y + pipes.pipeHeight + pipes.gap/2 - diamondManager.height/2));
                 
                 diamondManager.items.push({ 
                     x: diamondX, 
-                    y: baseY,
-                    baseY: baseY,
+                    y: clampedY,
+                    baseY: clampedY,
                     animationTime: Math.random() * Math.PI * 2
                 });
             }
