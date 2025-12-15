@@ -41,11 +41,6 @@
             margin: 0;
             overscroll-behavior: none;
             -webkit-overflow-scrolling: touch;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
         }
         
         #gameContainer {
@@ -59,27 +54,6 @@
             margin: 0 auto;
             background: #000;
             touch-action: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-        }
-        
-        @media screen and (orientation: landscape) {
-            #gameContainer {
-                max-width: 100vh;
-                max-height: 100vw;
-                transform: translate(-50%, -50%) rotate(90deg);
-                transform-origin: center;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-            }
-            
-            body {
-                overflow: hidden;
-            }
         }
         
         #gameCanvas {
@@ -106,10 +80,6 @@
             text-align: center;
             padding: 20px;
             box-sizing: border-box;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
         }
         
         #readyScreen {
@@ -138,9 +108,8 @@
             transition: transform 0.1s, opacity 0.2s;
             min-height: 44px;
             min-width: 44px;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
+            z-index: 150;
+            position: relative;
         }
         
         button:active {
@@ -219,6 +188,28 @@
             }
         }
         
+        /* Предотвращение поворота экрана - НОВОЕ */
+        @media (orientation: landscape) {
+            body {
+                transform: rotate(90deg);
+                transform-origin: center;
+                width: 100vh;
+                height: 100vw;
+                overflow-x: hidden;
+                position: absolute;
+                top: 0;
+                left: calc((100vw - 100vh) / 2);
+            }
+            
+            #gameContainer {
+                width: 100vh;
+                height: 100vw;
+                max-width: none;
+                max-height: none;
+                transform: none;
+            }
+        }
+        
         /* Запрет выделения текста на iOS */
         * {
             -webkit-touch-callout: none;
@@ -245,6 +236,14 @@
             border-radius: 10px;
             font-size: 12px;
             z-index: 50;
+        }
+        
+        /* Для кнопок на мобильных устройствах */
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 20px 40px;
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -1152,34 +1151,14 @@
             
             // Предотвращаем изменение ориентации через события
             window.addEventListener('orientationchange', function() {
-                // Принудительно устанавливаем портретную ориентацию
-                if (Math.abs(window.orientation) === 90) {
-                    if (screen.orientation && screen.orientation.lock) {
-                        screen.orientation.lock('portrait');
-                    }
-                }
+                // Принудительно перерисовываем при изменении ориентации
+                setTimeout(resizeCanvas, 100);
             });
-            
-            // Предотвращаем масштабирование
-            document.addEventListener('gesturestart', function(e) {
-                e.preventDefault();
-            });
-            
-            // Предотвращаем зум на iOS
-            document.addEventListener('touchmove', function(e) {
-                if(e.scale !== 1) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
         }
 
-        // Управление
-        function handleStart(event) {
+        // Управление для игры (клики/тапы по игровому полю)
+        function handleGameInput(event) {
             event.preventDefault();
-            event.stopPropagation();
-            
-            // Предотвращаем множественные касания
-            if (event.touches && event.touches.length > 1) return;
             
             if (gameState === 'start') {
                 resetGame();
@@ -1188,15 +1167,6 @@
             } else if (gameState === 'playing') {
                 bird.flap();
             }
-            
-            return false;
-        }
-
-        function handleEnd(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            isTouching = false;
-            return false;
         }
 
         // Обработчик изменения размера окна
@@ -1220,44 +1190,23 @@
             // Блокируем ориентацию экрана
             lockOrientation();
             
-            // Добавляем обработчики событий
-            gameContainer.addEventListener('touchstart', handleStart, { passive: false });
-            gameContainer.addEventListener('touchend', handleEnd, { passive: false });
-            gameContainer.addEventListener('touchcancel', handleEnd, { passive: false });
-            gameContainer.addEventListener('mousedown', handleStart, { passive: false });
-            gameContainer.addEventListener('mouseup', handleEnd, { passive: false });
-            gameContainer.addEventListener('click', function(e) {
-                if (gameState === 'playing') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }, { passive: false });
+            // Добавляем обработчики событий для игрового поля (только canvas)
+            canvas.addEventListener('touchstart', handleGameInput, { passive: false });
+            canvas.addEventListener('mousedown', handleGameInput, { passive: false });
             
+            // Обработчики для кнопок (отдельно от игрового поля)
             startButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
-                e.preventDefault();
                 await resetGame();
-            });
+            }, { passive: true });
             
             restartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
-                e.preventDefault();
-                
-                // Останавливаем текущую игру если она еще идет
-                gameState = 'gameover';
-                
-                // Скрываем экран Game Over сразу
-                gameOverScreen.style.display = 'none';
-                
-                // Даем небольшую задержку для анимации
-                setTimeout(async () => {
-                    await resetGame();
-                }, 100);
-            });
+                await resetGame();
+            }, { passive: true });
             
             closeButton.addEventListener('click', function(e) {
                 e.stopPropagation();
-                e.preventDefault();
                 // Закрываем мини-приложение через Telegram API
                 if (telegram.WebApp && telegram.WebApp.close) {
                     telegram.WebApp.close();
@@ -1265,7 +1214,7 @@
                     // Альтернатива для автономного режима
                     alert('Игра завершена. Закройте вкладку браузера.');
                 }
-            });
+            }, { passive: true });
             
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
