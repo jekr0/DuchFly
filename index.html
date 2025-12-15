@@ -1069,7 +1069,8 @@
                 ctx.font = `bold ${22 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(score.toString(), x + width/2, y + height/2);
+                const textX = x + width/2;
+                ctx.fillText(score.toString(), textX, y + height/2);
             }
         };
 
@@ -1095,8 +1096,9 @@
                 ctx.font = `bold ${22 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
-                const paddingRight = 15 * gameSettings.scale;
-                ctx.fillText(coinsCount.toString(), x + width - paddingRight, y + height/2);
+                
+                const textX = x + width - (15 * gameSettings.scale);
+                ctx.fillText(coinsCount.toString(), textX, y + height/2);
             }
         };
 
@@ -1122,8 +1124,9 @@
                 ctx.font = `bold ${22 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                const paddingLeft = 15 * gameSettings.scale;
-                ctx.fillText(diamondsCount.toString(), x + paddingLeft, y + height/2);
+                
+                const textX = x + (15 * gameSettings.scale);
+                ctx.fillText(diamondsCount.toString(), textX, y + height/2);
             }
         };
 
