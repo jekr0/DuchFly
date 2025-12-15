@@ -148,7 +148,7 @@
             top: 50%;
             transform: translateY(-50%);
             font-family: 'PIXY', Arial, sans-serif;
-            font-size: 28px;
+            font-size: 22px;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             font-weight: bold;
@@ -1119,7 +1119,7 @@
                 }
                 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
+                ctx.font = `bold ${22 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 const paddingLeft = 15 * gameSettings.scale;
@@ -1317,7 +1317,7 @@
             // Масштабирование текста статистики
             const statValues = document.querySelectorAll('.stat-value');
             statValues.forEach(stat => {
-                stat.style.fontSize = `${28 * scale}px`;
+                stat.style.fontSize = `${22 * scale}px`;
             });
             
             // Масштабирование позиции текста с учетом новых требований
