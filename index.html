@@ -305,25 +305,25 @@
             diamondManager.height = 28 * scale;
             diamondManager.dx = 3 * scale;
             
-            // Счетчики - на высоте 200 (в базовых координатах)
+            // Счетчики - на высоте 120 (в базовых координатах)
             scoreBoard.x = 146 * scale;
-            scoreBoard.y = 200 * scale;
+            scoreBoard.y = 120 * scale;
             scoreBoard.width = 138 * scale;
             scoreBoard.height = 36 * scale;
             
             coinScoreBoard.x = 27 * scale;
-            coinScoreBoard.y = 200 * scale;
+            coinScoreBoard.y = 120 * scale;
             coinScoreBoard.width = 82 * scale;
             coinScoreBoard.height = 36 * scale;
             coinScoreBoard.textX = 76 * scale;
-            coinScoreBoard.textY = 218 * scale; // 200 + 36/2
+            coinScoreBoard.textY = 138 * scale; // 120 + 36/2
             
             diamondScoreBoard.x = 316 * scale;
-            diamondScoreBoard.y = 200 * scale;
+            diamondScoreBoard.y = 120 * scale;
             diamondScoreBoard.width = 82 * scale;
             diamondScoreBoard.height = 36 * scale;
             diamondScoreBoard.textX = 340 * scale;
-            diamondScoreBoard.textY = 218 * scale; // 200 + 36/2
+            diamondScoreBoard.textY = 138 * scale; // 120 + 36/2
         }
 
         // Загрузка изображений
@@ -757,7 +757,7 @@
         // Счетчик очков
         const scoreBoard = {
             x: 146,
-            y: 200,
+            y: 120,
             width: 138,
             height: 36,
             
@@ -784,11 +784,11 @@
         // Счетчик монеток
         const coinScoreBoard = {
             x: 27,
-            y: 200,
+            y: 120,
             width: 82,
             height: 36,
             textX: 76,
-            textY: 218, // y + height/2 = 200 + 18 = 218
+            textY: 138, // y + height/2 = 120 + 18 = 138
             
             draw() {
                 if (images.coinScoreBoard.complete && images.coinScoreBoard.naturalWidth > 0) {
@@ -813,11 +813,11 @@
         // Счетчик алмазов
         const diamondScoreBoard = {
             x: 316,
-            y: 200,
+            y: 120,
             width: 82,
             height: 36,
             textX: 340,
-            textY: 218, // y + height/2 = 200 + 18 = 218
+            textY: 138, // y + height/2 = 120 + 18 = 138
             
             draw() {
                 if (images.diamondScoreBoard.complete && images.diamondScoreBoard.naturalWidth > 0) {
