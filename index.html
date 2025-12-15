@@ -144,7 +144,18 @@
             font-weight: bold;
         }
         
-        .stat-image {
+        /* Разные размеры для изображений статистики */
+        .coin-stat-image {
+            width: 82px;
+            height: 36px;
+        }
+        
+        .record-stat-image {
+            width: 138px;  /* Изменено с 82px на 138px */
+            height: 36px;
+        }
+        
+        .diamond-stat-image {
             width: 82px;
             height: 36px;
         }
@@ -376,15 +387,15 @@
             <div class="lobby-content">
                 <div class="lobby-stats">
                     <div class="stat-container">
-                        <img src="images/CoinScore.png" alt="Монеты" class="stat-image">
+                        <img src="images/CoinScore.png" alt="Монеты" class="coin-stat-image">
                         <div class="stat-value" id="totalCoins">0</div>
                     </div>
                     <div class="stat-container">
-                        <img src="images/RecordScore.png" alt="Рекорд" class="stat-image">
+                        <img src="images/RecordScore.png" alt="Рекорд" class="record-stat-image"> <!-- Изменен класс -->
                         <div class="stat-value" id="totalScore">0</div>
                     </div>
                     <div class="stat-container">
-                        <img src="images/EmeraldScore.png" alt="Алмазы" class="stat-image">
+                        <img src="images/EmeraldScore.png" alt="Алмазы" class="diamond-stat-image">
                         <div class="stat-value" id="totalDiamonds">0</div>
                     </div>
                 </div>
@@ -1212,8 +1223,21 @@
                 startButton.style.bottom = `${120 * scale}px`;
             }
             
-            const statImages = document.querySelectorAll('.stat-image');
-            statImages.forEach(img => {
+            // Масштабирование изображений статистики с разными базовыми размерами
+            const coinImages = document.querySelectorAll('.coin-stat-image');
+            coinImages.forEach(img => {
+                img.style.width = `${82 * scale}px`;
+                img.style.height = `${36 * scale}px`;
+            });
+            
+            const recordImages = document.querySelectorAll('.record-stat-image');
+            recordImages.forEach(img => {
+                img.style.width = `${138 * scale}px`;  // Изменено с 82px на 138px
+                img.style.height = `${36 * scale}px`;
+            });
+            
+            const diamondImages = document.querySelectorAll('.diamond-stat-image');
+            diamondImages.forEach(img => {
                 img.style.width = `${82 * scale}px`;
                 img.style.height = `${36 * scale}px`;
             });
