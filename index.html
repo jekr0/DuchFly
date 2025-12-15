@@ -104,7 +104,7 @@
             background-position: center;
             background-repeat: no-repeat;
             justify-content: space-between;
-            padding-top: 40px;
+            padding-top: 0;
             padding-bottom: 120px;
         }
         
@@ -126,7 +126,8 @@
             display: flex;
             justify-content: space-around;
             width: 100%;
-            margin-top: 20px;
+            margin-top: 0;
+            position: relative;
         }
         
         .stat-container {
@@ -417,7 +418,7 @@
         
         <div id="lobbyScreen" class="screen">
             <div class="lobby-content">
-                <div class="lobby-stats">
+                <div class="lobby-stats" id="lobbyStats">
                     <div class="stat-container coin-stat">
                         <div class="stat-image-container">
                             <img src="images/CoinScore.png" alt="Монеты" class="coin-stat-image">
@@ -556,6 +557,7 @@
         const totalDiamondsElement = document.getElementById('totalDiamonds');
         
         const gameContainer = document.getElementById('gameContainer');
+        const lobbyStats = document.getElementById('lobbyStats');
 
         const gameSettings = {
             baseWidth: 430,
@@ -1249,6 +1251,12 @@
         function scaleLobby() {
             const scale = gameSettings.scale;
             
+            // Устанавливаем отступ для статистики в лобби такой же как в игре
+            if (lobbyStats) {
+                const topMargin = Math.max(120 * scale, gameSettings.safeAreaTop + 20);
+                lobbyStats.style.marginTop = `${topMargin}px`;
+            }
+            
             const lobbyDuck = document.getElementById('lobbyDuck');
             if (lobbyDuck) {
                 lobbyDuck.style.width = `${261 * scale}px`;
@@ -1298,7 +1306,6 @@
             const recordStats = document.querySelectorAll('.record-stat .stat-value');
             recordStats.forEach(stat => {
                 stat.style.textAlign = 'center';
-                // Для центрирования устанавливаем left и right в 0
                 stat.style.left = '0';
                 stat.style.right = '0';
             });
