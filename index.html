@@ -43,6 +43,13 @@
             -webkit-overflow-scrolling: touch;
         }
         
+        body.telegram-fullscreen {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+        }
+        
         #gameContainer {
             position: relative;
             width: 100%;
@@ -54,6 +61,14 @@
             margin: 0 auto;
             background: #000;
             touch-action: none;
+        }
+        
+        body.telegram-fullscreen #gameContainer {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
         }
         
         #gameCanvas {
@@ -181,12 +196,22 @@
                 max-height: 100vh;
                 max-width: calc(100vh * 430/932);
             }
+            
+            body.telegram-fullscreen #gameContainer {
+                max-height: 100% !important;
+                max-width: 100% !important;
+            }
         }
         
         @media (min-aspect-ratio: 430/932) {
             #gameContainer {
                 max-width: 100vw;
                 max-height: calc(100vw * 932/430);
+            }
+            
+            body.telegram-fullscreen #gameContainer {
+                max-width: 100% !important;
+                max-height: 100% !important;
             }
         }
         
@@ -203,12 +228,26 @@
                 left: calc((100vw - 100vh) / 2);
             }
             
+            body.telegram-fullscreen {
+                transform: none !important;
+                width: 100% !important;
+                height: 100% !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+            }
+            
             #gameContainer {
                 width: 100vh;
                 height: 100vw;
                 max-width: none;
                 max-height: none;
                 transform: none;
+            }
+            
+            body.telegram-fullscreen #gameContainer {
+                width: 100% !important;
+                height: 100% !important;
             }
         }
         
@@ -287,19 +326,42 @@
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
                 const WebApp = window.Telegram.WebApp;
                 
+                // Добавляем класс для полноэкранного режима Telegram
+                document.body.classList.add('telegram-fullscreen');
+                
                 // Уведомляем Telegram, что приложение готово
                 WebApp.ready();
+                
+                // Запрашиваем полноэкранный иммерсивный режим
+                setTimeout(() => {
+                    WebApp.expand();
+                    // Принудительно расширяем на весь экран
+                    if (WebApp.viewportHeight && WebApp.viewportStableHeight) {
+                        const fullHeight = Math.max(WebApp.viewportHeight, WebApp.viewportStableHeight);
+                        WebApp.MainButton.showProgress();
+                        setTimeout(() => {
+                            WebApp.MainButton.hideProgress();
+                        }, 300);
+                    }
+                }, 300);
+                
+                // Настройка Telegram WebApp для полноэкранного режима
+                WebApp.setHeaderColor('#87CEEB');
+                WebApp.setBackgroundColor('#87CEEB');
+                WebApp.enableClosingConfirmation();
                 
                 // Отключаем случайное закрытие при вертикальном свайпе
                 if (WebApp.disableVerticalSwipes) {
                     WebApp.disableVerticalSwipes();
                 }
                 
-                // Запрашиваем полноэкранный иммерсивный режим
-                WebApp.expand();
-                
-                // Устанавливаем цвет фона, соответствующий игре
-                WebApp.setBackgroundColor('#87CEEB');
+                // Настраиваем кнопку "Назад" для закрытия приложения
+                if (WebApp.BackButton && WebApp.BackButton.isVisible) {
+                    WebApp.BackButton.show();
+                    WebApp.BackButton.onClick(() => {
+                        WebApp.close();
+                    });
+                }
                 
                 // Получаем информацию о пользователе
                 const user = WebApp.initDataUnsafe.user;
@@ -313,6 +375,8 @@
                 console.log('Telegram Mini App инициализировано. Пользователь:', user);
                 console.log('Платформа:', WebApp.platform);
                 console.log('Цветовая тема:', WebApp.colorScheme);
+                console.log('Высота viewport:', WebApp.viewportHeight);
+                console.log('Стабильная высота viewport:', WebApp.viewportStableHeight);
                 
                 return {
                     WebApp,
@@ -1261,6 +1325,21 @@
             
             // Запускаем игровой цикл
             gameLoop();
+            
+            // Дополнительные настройки для Telegram
+            if (telegram.WebApp) {
+                // Проверяем, что приложение расширено на весь экран
+                setTimeout(() => {
+                    if (!telegram.WebApp.isExpanded) {
+                        telegram.WebApp.expand();
+                    }
+                    
+                    // Принудительно обновляем размеры через секунду после загрузки
+                    setTimeout(() => {
+                        resizeCanvas();
+                    }, 1000);
+                }, 500);
+            }
         }
 
         // Запуск игры
