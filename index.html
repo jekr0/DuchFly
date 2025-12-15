@@ -565,7 +565,9 @@
             scaleX: 1,
             scaleY: 1,
             scale: 1,
-            safeAreaTop: telegram.WebApp ? (telegram.WebApp.safeAreaInset?.top || 0) : 0
+            safeAreaTop: 0,
+            isTelegram: telegram.WebApp !== null,
+            isExpanded: false
         };
 
         const images = {
@@ -776,7 +778,7 @@
                 if (gameState !== 'playing') return;
                 
                 if (frames % 100 === 0) {
-                    const skyHeight = Math.max(100 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                    const skyHeight = getSafeTopMargin();
                     const groundHeight = 100 * gameSettings.scale;
                     const playableHeight = canvas.height - skyHeight - groundHeight;
                     const minPipeHeight = 100 * gameSettings.scale;
@@ -1048,7 +1050,7 @@
         const scoreBoard = {
             draw() {
                 const x = 146 * gameSettings.scale;
-                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const y = getSafeTopMargin();
                 const width = 138 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
@@ -1074,7 +1076,7 @@
         const coinScoreBoard = {
             draw() {
                 const x = 27 * gameSettings.scale;
-                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const y = getSafeTopMargin();
                 const width = 82 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
@@ -1101,7 +1103,7 @@
         const diamondScoreBoard = {
             draw() {
                 const x = 316 * gameSettings.scale;
-                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const y = getSafeTopMargin();
                 const width = 82 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
@@ -1124,6 +1126,28 @@
                 ctx.fillText(diamondsCount.toString(), x + paddingLeft, y + height/2);
             }
         };
+
+        // Функция для получения безопасного отступа сверху
+        function getSafeTopMargin() {
+            // Базовый отступ 120px, масштабируемый
+            const baseMargin = 120 * gameSettings.scale;
+            
+            // Если это Telegram и есть безопасная зона, используем ее
+            if (telegram.WebApp && telegram.WebApp.safeAreaInset) {
+                const safeTop = telegram.WebApp.safeAreaInset.top || 0;
+                // Используем безопасную зону + 20px для отступа от верхнего края
+                return Math.max(baseMargin, safeTop + 20);
+            }
+            
+            // Если это полноэкранный режим Telegram
+            if (gameSettings.isTelegram && gameSettings.isExpanded) {
+                // Используем фиксированный отступ для статус-бара
+                return Math.max(baseMargin, 40);
+            }
+            
+            // В автономном режиме или если не Telegram
+            return baseMargin;
+        }
 
         async function gameOver() {
             gameState = 'gameover';
@@ -1253,7 +1277,7 @@
             
             // Устанавливаем отступ для статистики в лобби такой же как в игре
             if (lobbyStats) {
-                const topMargin = Math.max(120 * scale, gameSettings.safeAreaTop + 20);
+                const topMargin = getSafeTopMargin();
                 lobbyStats.style.marginTop = `${topMargin}px`;
             }
             
@@ -1330,6 +1354,18 @@
             gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
             gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
             gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
+            
+            // Обновляем статус полноэкранного режима
+            if (telegram.WebApp) {
+                gameSettings.isExpanded = telegram.WebApp.isExpanded || false;
+                
+                // Если Telegram не предоставляет safeAreaInset, используем fallback
+                if (!telegram.WebApp.safeAreaInset && gameSettings.isExpanded) {
+                    gameSettings.safeAreaTop = 40; // Фиксированный отступ для статус-бара
+                } else if (telegram.WebApp.safeAreaInset) {
+                    gameSettings.safeAreaTop = telegram.WebApp.safeAreaInset.top || 0;
+                }
+            }
             
             scaleGameObjects();
             scaleLobby();
