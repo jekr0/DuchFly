@@ -1,70 +1,1399 @@
-async function init() {
-    resizeCanvas();
-    
-    lockOrientation();
-    
-    // ИСПРАВЛЕНО: Добавляем обработчик клика на весь экран готовности
-    readyScreen.addEventListener('touchstart', handleReadyScreenClick, { passive: false });
-    readyScreen.addEventListener('mousedown', handleReadyScreenClick, { passive: false });
-    readyScreen.addEventListener('click', handleReadyScreenClick, { passive: false });
-    
-    canvas.addEventListener('touchstart', handleGameInput, { passive: false });
-    canvas.addEventListener('mousedown', handleGameInput, { passive: false });
-    
-    // Обработчик для кнопки старта в лобби
-    lobbyStartButton.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        console.log('Start button clicked, transitioning to ready screen');
-        await resetGame();
-    }, { passive: false });
-    
-    restartButton.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        await resetGame();
-    }, { passive: false });
-    
-    toLobbyButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        showLobby();
-    }, { passive: false });
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    
-    gameContainer.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        return false;
-    });
-    
-    document.addEventListener('gesturestart', function(e) {
-        e.preventDefault();
-    });
-    
-    bird.init();
-    
-    await loadProgress();
-    
-    // Показываем лобби при запуске
-    showLobby();
-    
-    gameLoop();
-    
-    if (telegram.WebApp) {
-        setTimeout(() => {
-            if (!telegram.WebApp.isExpanded) {
-                telegram.WebApp.expand();
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-orientations" content="portrait">
+    <meta name="screen-orientation" content="portrait">
+    <meta name="theme-color" content="#000000">
+    <title>Duck Siders</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            position: fixed;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #87CEEB;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            padding: 0;
+            margin: 0;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        body.telegram-fullscreen {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            max-width: 430px;
+            max-height: 932px;
+            aspect-ratio: 430/932;
+            overflow: hidden;
+            margin: 0 auto;
+            background: #000;
+            touch-action: none;
+        }
+        
+        body.telegram-fullscreen #gameContainer {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #87CEEB;
+            touch-action: none;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: opacity 0.3s ease;
+        }
+        
+        #lobbyScreen {
+            display: flex;
+            background-image: url('images/Main.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            justify-content: space-between;
+            padding-top: 40px;
+            padding-bottom: 120px;
+        }
+        
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .lobby-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            justify-content: space-between;
+        }
+        
+        .lobby-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .stat-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .stat-value {
+            font-family: 'PIXY', Arial, sans-serif;
+            font-size: 28px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-weight: bold;
+        }
+        
+        .stat-image {
+            width: 40px;
+            height: 40px;
+        }
+        
+        #lobbyDuck {
+            width: 261px;
+            height: 225px;
+            margin-top: auto;
+            margin-bottom: 250px;
+        }
+        
+        .start-button {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 200px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+        }
+        
+        .start-button:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        
+        .start-button-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        #readyScreen {
+            background: rgba(0, 0, 0, 0.5);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            display: none;
+        }
+        
+        #gameOverScreen {
+            background: rgba(0,0,0,0.8);
+            display: none;
+        }
+        
+        button {
+            background: #FFD700;
+            color: #333;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.1s, opacity 0.2s;
+            min-height: 44px;
+            min-width: 44px;
+            z-index: 150;
+            position: relative;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+        
+        h1 {
+            color: #FFD700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: clamp(24px, 6vw, 40px);
+        }
+        
+        .finalScore {
+            font-size: clamp(18px, 4vw, 24px);
+            margin: 10px 0;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        p {
+            font-size: clamp(16px, 3.5vw, 20px);
+            margin-bottom: 20px;
+        }
+
+        @font-face {
+            font-family: 'PIXY';
+            src: url('fonts/PIXY.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        .ready-text {
+            font-family: 'PIXY', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: clamp(30px, 8vw, 40px);
+            color: white;
+            text-align: center;
+            line-height: 1.2;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            padding: 0 20px;
+        }
+
+        .blink {
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-aspect-ratio: 9/16) {
+            #gameContainer {
+                max-height: 100vh;
+                max-width: calc(100vh * 430/932);
             }
             
-            setTimeout(() => {
-                resizeCanvas();
-                // Перерисовываем лобби после изменения размеров
-                if (gameState === 'lobby') {
-                    draw();
+            body.telegram-fullscreen #gameContainer {
+                max-height: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+        
+        @media (min-aspect-ratio: 430/932) {
+            #gameContainer {
+                max-width: 100vw;
+                max-height: calc(100vw * 932/430);
+            }
+            
+            body.telegram-fullscreen #gameContainer {
+                max-width: 100% !important;
+                max-height: 100% !important;
+            }
+        }
+        
+        @media (orientation: landscape) {
+            body {
+                transform: rotate(90deg);
+                transform-origin: center;
+                width: 100vh;
+                height: 100vw;
+                overflow-x: hidden;
+                position: absolute;
+                top: 0;
+                left: calc((100vw - 100vh) / 2);
+            }
+            
+            body.telegram-fullscreen {
+                transform: none !important;
+                width: 100% !important;
+                height: 100% !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+            }
+            
+            #gameContainer {
+                width: 100vh;
+                height: 100vw;
+                max-width: none;
+                max-height: none;
+                transform: none;
+            }
+            
+            body.telegram-fullscreen #gameContainer {
+                width: 100% !important;
+                height: 100% !important;
+            }
+        }
+        
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        input, textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
+        }
+        
+        .telegram-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 50;
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 20px 40px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div class="telegram-info" id="telegramInfo" style="display: none;"></div>
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="lobbyScreen" class="screen">
+            <div class="lobby-content">
+                <div class="lobby-stats">
+                    <div class="stat-container">
+                        <img src="images/CoinScore.png" alt="Монеты" class="stat-image">
+                        <div class="stat-value" id="totalCoins">0</div>
+                    </div>
+                    <div class="stat-container">
+                        <img src="images/RecordScore.png" alt="Рекорд" class="stat-image">
+                        <div class="stat-value" id="totalScore">0</div>
+                    </div>
+                    <div class="stat-container">
+                        <img src="images/EmeraldScore.png" alt="Алмазы" class="stat-image">
+                        <div class="stat-value" id="totalDiamonds">0</div>
+                    </div>
+                </div>
+                
+                <img id="lobbyDuck" src="images/ClassicDuckSkin.png" alt="Duck">
+                
+                <button class="start-button" id="lobbyStartButton">
+                    <img src="images/StartBottom.png" alt="Начать игру" class="start-button-image">
+                </button>
+            </div>
+        </div>
+        
+        <div id="readyScreen" class="screen">
+            <div class="ready-text blink">
+                <div>НАЖМИТЕ</div>
+                <div>чтобы начать игру</div>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="screen">
+            <h1>Марина красотка</h1>
+            <div class="finalScore">Счет: <span id="finalScore">0</span></div>
+            <div class="finalScore">Монетки: <span id="finalCoins">0</span></div>
+            <div class="finalScore">Алмазы: <span id="finalDiamonds">0</span></div>
+            <div id="highScoreDisplay" class="finalScore" style="display: none;">Рекорд: <span id="highScoreValue">0</span></div>
+            <button id="restartButton">Играть снова</button>
+            <button id="toLobbyButton" style="background: #4444ff; color: white; margin-top: 10px;">В лобби</button>
+        </div>
+    </div>
+
+    <script>
+        // Telegram Mini App интеграция
+        function initTelegramIntegration() {
+            const telegramInfo = document.getElementById('telegramInfo');
+            
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+                const WebApp = window.Telegram.WebApp;
+                
+                document.body.classList.add('telegram-fullscreen');
+                WebApp.ready();
+                
+                setTimeout(() => {
+                    WebApp.expand();
+                    if (WebApp.viewportHeight && WebApp.viewportStableHeight) {
+                        const fullHeight = Math.max(WebApp.viewportHeight, WebApp.viewportStableHeight);
+                        WebApp.MainButton.showProgress();
+                        setTimeout(() => {
+                            WebApp.MainButton.hideProgress();
+                        }, 300);
+                    }
+                }, 300);
+                
+                WebApp.setHeaderColor('#87CEEB');
+                WebApp.setBackgroundColor('#87CEEB');
+                WebApp.enableClosingConfirmation();
+                
+                if (WebApp.disableVerticalSwipes) {
+                    WebApp.disableVerticalSwipes();
                 }
-            }, 1000);
-        }, 500);
-    }
-}
+                
+                if (WebApp.BackButton && WebApp.BackButton.isVisible) {
+                    WebApp.BackButton.show();
+                    WebApp.BackButton.onClick(() => {
+                        WebApp.close();
+                    });
+                }
+                
+                const user = WebApp.initDataUnsafe.user;
+                const userId = user ? user.id : 'unknown';
+                const userName = user ? (user.first_name || 'Гость') : 'Гость';
+                
+                telegramInfo.textContent = `Привет, ${userName}!`;
+                telegramInfo.style.display = 'block';
+                
+                return {
+                    WebApp,
+                    user,
+                    userId,
+                    userName,
+                    haptic: WebApp.HapticFeedback,
+                    cloudStorage: WebApp.CloudStorage
+                };
+            } else {
+                telegramInfo.textContent = 'Автономный режим';
+                telegramInfo.style.display = 'block';
+                
+                return {
+                    WebApp: null,
+                    user: null,
+                    userId: 'local_user',
+                    userName: 'Гость',
+                    haptic: {
+                        impactOccurred: () => console.log('Вибрация (эмуляция)'),
+                        notificationOccurred: () => console.log('Уведомление (эмуляция)')
+                    },
+                    cloudStorage: null
+                };
+            }
+        }
+        
+        const telegram = initTelegramIntegration();
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const finalScoreElement = document.getElementById('finalScore');
+        const finalCoinsElement = document.getElementById('finalCoins');
+        const finalDiamondsElement = document.getElementById('finalDiamonds');
+        const lobbyScreen = document.getElementById('lobbyScreen');
+        const readyScreen = document.getElementById('readyScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const restartButton = document.getElementById('restartButton');
+        const toLobbyButton = document.getElementById('toLobbyButton');
+        const lobbyStartButton = document.getElementById('lobbyStartButton');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const highScoreValue = document.getElementById('highScoreValue');
+        
+        const totalCoinsElement = document.getElementById('totalCoins');
+        const totalScoreElement = document.getElementById('totalScore');
+        const totalDiamondsElement = document.getElementById('totalDiamonds');
+        
+        const gameContainer = document.getElementById('gameContainer');
+
+        const gameSettings = {
+            baseWidth: 430,
+            baseHeight: 932,
+            scaleX: 1,
+            scaleY: 1,
+            scale: 1,
+            safeAreaTop: telegram.WebApp ? (telegram.WebApp.safeAreaInset?.top || 0) : 0
+        };
+
+        const images = {
+            bird: new Image(),
+            pipeTop: new Image(),
+            pipeBottom: new Image(),
+            background: new Image(),
+            scoreBoard: new Image(),
+            coin: new Image(),
+            coinScoreBoard: new Image(),
+            diamond: new Image(),
+            diamondScoreBoard: new Image()
+        };
+
+        images.bird.src = 'images/ClassicDuckSkin.png';
+        images.pipeTop.src = 'images/PipeDown.png';
+        images.pipeBottom.src = 'images/PipeDown.png';
+        images.background.src = 'images/Game.png';
+        images.scoreBoard.src = 'images/RecordScore.png';
+        images.coin.src = 'images/Coin.png';
+        images.coinScoreBoard.src = 'images/CoinScore.png';
+        images.diamond.src = 'images/Emerald.png';
+        images.diamondScoreBoard.src = 'images/EmeraldScore.png';
+
+        let totalCoins = 0;
+        let totalDiamonds = 0;
+        let highScore = 0;
+        
+        let gameState = 'lobby';
+        let score = 0;
+        let coinsCount = 0;
+        let diamondsCount = 0;
+        let frames = 0;
+        let pipeCounter = 0;
+        let diamondPipeCounter = 0;
+
+        async function loadProgress() {
+            if (telegram.cloudStorage) {
+                try {
+                    const savedCoins = await telegram.cloudStorage.getItem('totalCoins');
+                    const savedDiamonds = await telegram.cloudStorage.getItem('totalDiamonds');
+                    const savedHighScore = await telegram.cloudStorage.getItem('highScore');
+                    
+                    if (savedCoins) totalCoins = parseInt(savedCoins);
+                    if (savedDiamonds) totalDiamonds = parseInt(savedDiamonds);
+                    if (savedHighScore) highScore = parseInt(savedHighScore);
+                } catch (error) {
+                    console.error('Ошибка загрузки прогресса:', error);
+                }
+            } else {
+                const savedCoins = localStorage.getItem('totalCoins');
+                const savedDiamonds = localStorage.getItem('totalDiamonds');
+                const savedHighScore = localStorage.getItem('highScore');
+                
+                if (savedCoins) totalCoins = parseInt(savedCoins);
+                if (savedDiamonds) totalDiamonds = parseInt(savedDiamonds);
+                if (savedHighScore) highScore = parseInt(savedHighScore);
+            }
+            
+            updateLobbyStats();
+        }
+        
+        async function saveProgress() {
+            if (telegram.cloudStorage) {
+                try {
+                    await telegram.cloudStorage.setItem('totalCoins', totalCoins.toString());
+                    await telegram.cloudStorage.setItem('totalDiamonds', totalDiamonds.toString());
+                    await telegram.cloudStorage.setItem('highScore', highScore.toString());
+                } catch (error) {
+                    console.error('Ошибка сохранения прогресса:', error);
+                }
+            } else {
+                localStorage.setItem('totalCoins', totalCoins.toString());
+                localStorage.setItem('totalDiamonds', totalDiamonds.toString());
+                localStorage.setItem('highScore', highScore.toString());
+            }
+        }
+        
+        function updateLobbyStats() {
+            totalCoinsElement.textContent = totalCoins;
+            totalScoreElement.textContent = highScore;
+            totalDiamondsElement.textContent = totalDiamonds;
+        }
+
+        function triggerHapticFeedback(type = 'light') {
+            if (telegram.haptic) {
+                try {
+                    switch(type) {
+                        case 'light':
+                            telegram.haptic.impactOccurred('light');
+                            break;
+                        case 'medium':
+                            telegram.haptic.impactOccurred('medium');
+                            break;
+                        case 'heavy':
+                            telegram.haptic.impactOccurred('heavy');
+                            break;
+                        case 'success':
+                            telegram.haptic.notificationOccurred('success');
+                            break;
+                        case 'error':
+                            telegram.haptic.notificationOccurred('error');
+                            break;
+                    }
+                } catch (error) {
+                    console.log('Вибрация не поддерживается:', error);
+                }
+            }
+        }
+
+        const bird = {
+            x: 80,
+            y: 40,
+            width: 87,
+            height: 75,
+            gravity: 0.4,
+            lift: -9,
+            velocity: 0,
+            rotation: 0,
+            
+            init() {
+                this.y = canvas.height / 2;
+                this.velocity = 0;
+                this.rotation = 0;
+            },
+            
+            draw() {
+                if (images.bird.complete && images.bird.naturalWidth > 0) {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    ctx.drawImage(images.bird, -this.width/2, -this.height/2, this.width, this.height);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 15, this.y - 10, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            },
+            
+            update() {
+                if (gameState !== 'playing') return;
+                
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+                
+                this.rotation = Math.max(-0.3, Math.min(0.3, this.velocity * 0.03));
+                
+                if (this.y - this.height/2 <= 0) {
+                    this.y = this.height/2;
+                    if (gameState === 'playing') {
+                        gameOver();
+                    }
+                }
+                
+                if (this.y + this.height/2 >= canvas.height) {
+                    this.y = canvas.height - this.height/2;
+                    if (gameState === 'playing') {
+                        gameOver();
+                    }
+                }
+            },
+            
+            flap() {
+                this.velocity = this.lift;
+                this.rotation = -0.3;
+                triggerHapticFeedback('light');
+            }
+        };
+
+        const pipes = {
+            position: [],
+            gap: 250,
+            dx: 3,
+            width: 96,
+            pipeHeight: 640,
+            
+            draw() {
+                for (let i = 0; i < this.position.length; i++) {
+                    let p = this.position[i];
+                    
+                    if (images.pipeTop.complete && images.pipeBottom.complete) {
+                        ctx.save();
+                        ctx.translate(p.x + this.width/2, p.y + this.pipeHeight/2);
+                        ctx.rotate(Math.PI);
+                        ctx.drawImage(images.pipeTop, -this.width/2, -this.pipeHeight/2, this.width, this.pipeHeight);
+                        ctx.restore();
+                        
+                        let bottomY = p.y + this.pipeHeight + this.gap;
+                        ctx.drawImage(images.pipeBottom, p.x, bottomY, this.width, this.pipeHeight);
+                    } else {
+                        ctx.fillStyle = '#75C235';
+                        ctx.fillRect(p.x, p.y, this.width, this.pipeHeight);
+                        
+                        let bottomY = p.y + this.pipeHeight + this.gap;
+                        ctx.fillRect(p.x, bottomY, this.width, canvas.height - bottomY);
+                    }
+                }
+            },
+            
+            update() {
+                if (gameState !== 'playing') return;
+                
+                if (frames % 100 === 0) {
+                    const skyHeight = Math.max(100 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                    const groundHeight = 100 * gameSettings.scale;
+                    const playableHeight = canvas.height - skyHeight - groundHeight;
+                    const minPipeHeight = 100 * gameSettings.scale;
+                    const maxPipeHeight = playableHeight - this.gap - minPipeHeight;
+                    
+                    if (maxPipeHeight > minPipeHeight) {
+                        const height = minPipeHeight + Math.random() * (maxPipeHeight - minPipeHeight);
+                    
+                        this.position.push({
+                            x: canvas.width,
+                            y: skyHeight - height,
+                            width: this.width,
+                            height: this.pipeHeight
+                        });
+                        
+                        pipeCounter++;
+                        diamondPipeCounter++;
+                        
+                        if (pipeCounter >= 5 && Math.random() < 0.7) {
+                            createCoin();
+                            pipeCounter = 0;
+                        }
+                        
+                        if (diamondPipeCounter >= 8 && Math.random() < 0.5) {
+                            createDiamond();
+                            diamondPipeCounter = 0;
+                        }
+                    }
+                }
+                
+                for (let i = this.position.length - 1; i >= 0; i--) {
+                    let p = this.position[i];
+                    p.x -= this.dx * gameSettings.scale;
+                    
+                    if (this.collision(bird, p)) {
+                        gameOver();
+                    }
+                    
+                    if (p.x + this.width <= 0) {
+                        this.position.splice(i, 1);
+                        score++;
+                    }
+                }
+            },
+            
+            collision(bird, pipe) {
+                const hitboxScale = 0.8;
+                const hitboxWidth = bird.width * hitboxScale;
+                const hitboxHeight = bird.height * hitboxScale;
+                
+                const birdLeft = bird.x - hitboxWidth/2;
+                const birdRight = bird.x + hitboxWidth/2;
+                const birdTop = bird.y - hitboxHeight/2;
+                const birdBottom = bird.y + hitboxHeight/2;
+                
+                const pipeRight = pipe.x + this.width;
+                const pipeGapTop = Math.max(0, pipe.y + this.pipeHeight);
+                const pipeGapBottom = pipeGapTop + this.gap;
+                
+                if (birdRight > pipe.x && birdLeft < pipeRight && 
+                    birdTop < pipeGapTop && birdBottom > pipe.y) {
+                    return true;
+                }
+                
+                if (birdRight > pipe.x && birdLeft < pipeRight && 
+                    birdBottom > pipeGapBottom) {
+                    return true;
+                }
+                
+                return false;
+            },
+            
+            reset() {
+                this.position = [];
+            }
+        };
+
+        const coinManager = {
+            items: [],
+            width: 28,
+            height: 28,
+            dx: 3,
+            animationSpeed: 0.05,
+            
+            draw() {
+                for (let i = 0; i < this.items.length; i++) {
+                    let coin = this.items[i];
+                    
+                    if (images.coin.complete) {
+                        ctx.drawImage(images.coin, coin.x, coin.y, this.width, this.height);
+                    } else {
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        ctx.arc(coin.x + this.width/2, coin.y + this.height/2, this.width/2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            },
+            
+            update() {
+                if (gameState !== 'playing') return;
+                
+                for (let i = this.items.length - 1; i >= 0; i--) {
+                    let coin = this.items[i];
+                    coin.x -= this.dx * gameSettings.scale;
+                    
+                    coin.animationTime += this.animationSpeed;
+                    coin.y = coin.baseY + Math.sin(coin.animationTime) * 10 * gameSettings.scale;
+                    
+                    if (this.collection(bird, coin)) {
+                        this.items.splice(i, 1);
+                        coinsCount++;
+                        triggerHapticFeedback('light');
+                    }
+                    
+                    if (coin.x + this.width <= 0) {
+                        this.items.splice(i, 1);
+                    }
+                }
+            },
+            
+            collection(bird, coin) {
+                const hitboxScale = 0.8;
+                const hitboxWidth = bird.width * hitboxScale;
+                const hitboxHeight = bird.height * hitboxScale;
+                
+                const birdLeft = bird.x - hitboxWidth/2;
+                const birdRight = bird.x + hitboxWidth/2;
+                const birdTop = bird.y - hitboxHeight/2;
+                const birdBottom = bird.y + hitboxHeight/2;
+                
+                const coinLeft = coin.x;
+                const coinRight = coin.x + this.width;
+                const coinTop = coin.y;
+                const coinBottom = coin.y + this.height;
+                
+                return (
+                    birdRight > coinLeft &&
+                    birdLeft < coinRight &&
+                    birdBottom > coinTop &&
+                    birdTop < coinBottom
+                );
+            },
+            
+            reset() {
+                this.items = [];
+            }
+        };
+
+        const diamondManager = {
+            items: [],
+            width: 28,
+            height: 28,
+            dx: 3,
+            animationSpeed: 0.05,
+            
+            draw() {
+                for (let i = 0; i < this.items.length; i++) {
+                    let diamond = this.items[i];
+                    
+                    if (images.diamond.complete) {
+                        ctx.drawImage(images.diamond, diamond.x, diamond.y, this.width, this.height);
+                    } else {
+                        ctx.fillStyle = '#00BFFF';
+                        ctx.beginPath();
+                        ctx.moveTo(diamond.x + this.width/2, diamond.y);
+                        ctx.lineTo(diamond.x + this.width, diamond.y + this.height/2);
+                        ctx.lineTo(diamond.x + this.width/2, diamond.y + this.height);
+                        ctx.lineTo(diamond.x, diamond.y + this.height/2);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            },
+            
+            update() {
+                if (gameState !== 'playing') return;
+                
+                for (let i = this.items.length - 1; i >= 0; i--) {
+                    let diamond = this.items[i];
+                    diamond.x -= this.dx * gameSettings.scale;
+                    
+                    diamond.animationTime += this.animationSpeed;
+                    diamond.y = diamond.baseY + Math.sin(diamond.animationTime) * 10 * gameSettings.scale;
+                    
+                    if (this.collection(bird, diamond)) {
+                        this.items.splice(i, 1);
+                        diamondsCount++;
+                        triggerHapticFeedback('medium');
+                    }
+                    
+                    if (diamond.x + this.width <= 0) {
+                        this.items.splice(i, 1);
+                    }
+                }
+            },
+            
+            collection(bird, diamond) {
+                const hitboxScale = 0.8;
+                const hitboxWidth = bird.width * hitboxScale;
+                const hitboxHeight = bird.height * hitboxScale;
+                
+                const birdLeft = bird.x - hitboxWidth/2;
+                const birdRight = bird.x + hitboxWidth/2;
+                const birdTop = bird.y - hitboxHeight/2;
+                const birdBottom = bird.y + hitboxHeight/2;
+                
+                const diamondLeft = diamond.x;
+                const diamondRight = diamond.x + this.width;
+                const diamondTop = diamond.y;
+                const diamondBottom = diamond.y + this.height;
+                
+                return (
+                    birdRight > diamondLeft &&
+                    birdLeft < diamondRight &&
+                    birdBottom > diamondTop &&
+                    birdTop < diamondBottom
+                );
+            },
+            
+            reset() {
+                this.items = [];
+            }
+        };
+
+        function createCoin() {
+            if (pipes.position.length > 0) {
+                const lastPipe = pipes.position[pipes.position.length - 1];
+                const coinX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
+                const baseY = Math.max(0, Math.min(canvas.height - coinManager.height, 
+                    lastPipe.y + pipes.pipeHeight + pipes.gap/2 - coinManager.height/2));
+                
+                coinManager.items.push({ 
+                    x: coinX, 
+                    y: baseY,
+                    baseY: baseY,
+                    animationTime: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function createDiamond() {
+            if (pipes.position.length > 0) {
+                const lastPipe = pipes.position[pipes.position.length - 1];
+                const diamondX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
+                const baseY = Math.max(0, Math.min(canvas.height - diamondManager.height,
+                    lastPipe.y + pipes.pipeHeight + pipes.gap/2 - diamondManager.height/2));
+                
+                diamondManager.items.push({ 
+                    x: diamondX, 
+                    y: baseY,
+                    baseY: baseY,
+                    animationTime: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        const background = {
+            draw() {
+                if (images.background.complete) {
+                    ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
+                } else {
+                    ctx.fillStyle = '#87CEEB';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+        };
+
+        const scoreBoard = {
+            draw() {
+                const x = 146 * gameSettings.scale;
+                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const width = 138 * gameSettings.scale;
+                const height = 36 * gameSettings.scale;
+                
+                if (images.scoreBoard.complete) {
+                    ctx.drawImage(images.scoreBoard, x, y, width, height);
+                } else {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x, y, width, height);
+                    
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2 * gameSettings.scale;
+                    ctx.strokeRect(x, y, width, height);
+                }
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `bold ${30 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(score.toString(), x + width/2, y + height/2);
+            }
+        };
+
+        const coinScoreBoard = {
+            draw() {
+                const x = 27 * gameSettings.scale;
+                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const width = 82 * gameSettings.scale;
+                const height = 36 * gameSettings.scale;
+                
+                if (images.coinScoreBoard.complete) {
+                    ctx.drawImage(images.coinScoreBoard, x, y, width, height);
+                } else {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x, y, width, height);
+                    
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2 * gameSettings.scale;
+                    ctx.strokeRect(x, y, width, height);
+                }
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(coinsCount.toString(), x + 49 * gameSettings.scale, y + height/2);
+            }
+        };
+
+        const diamondScoreBoard = {
+            draw() {
+                const x = 316 * gameSettings.scale;
+                const y = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const width = 82 * gameSettings.scale;
+                const height = 36 * gameSettings.scale;
+                
+                if (images.diamondScoreBoard.complete) {
+                    ctx.drawImage(images.diamondScoreBoard, x, y, width, height);
+                } else {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x, y, width, height);
+                    
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2 * gameSettings.scale;
+                    ctx.strokeRect(x, y, width, height);
+                }
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(diamondsCount.toString(), x + 24 * gameSettings.scale, y + height/2);
+            }
+        };
+
+        async function gameOver() {
+            gameState = 'gameover';
+            finalScoreElement.textContent = score;
+            finalCoinsElement.textContent = coinsCount;
+            finalDiamondsElement.textContent = diamondsCount;
+            
+            totalCoins += coinsCount;
+            totalDiamonds += diamondsCount;
+            
+            if (score > highScore) {
+                highScore = score;
+            }
+            
+            await saveProgress();
+            updateLobbyStats();
+            
+            if (highScore > 0) {
+                highScoreValue.textContent = highScore;
+                highScoreDisplay.style.display = 'block';
+            }
+            
+            triggerHapticFeedback('error');
+            
+            hideAllScreens();
+            gameOverScreen.style.display = 'flex';
+        }
+
+        async function resetGame() {
+            score = 0;
+            coinsCount = 0;
+            diamondsCount = 0;
+            frames = 0;
+            pipeCounter = 0;
+            diamondPipeCounter = 0;
+            
+            bird.init();
+            pipes.reset();
+            coinManager.reset();
+            diamondManager.reset();
+            
+            gameState = 'ready';
+            
+            hideAllScreens();
+            readyScreen.style.display = 'flex';
+            
+            resizeCanvas();
+            
+            triggerHapticFeedback('light');
+        }
+
+        function showLobby() {
+            gameState = 'lobby';
+            hideAllScreens();
+            lobbyScreen.style.display = 'flex';
+            updateLobbyStats();
+            resizeCanvas();
+        }
+
+        function startPlaying() {
+            gameState = 'playing';
+            hideAllScreens();
+            bird.flap();
+        }
+
+        function hideAllScreens() {
+            lobbyScreen.style.display = 'none';
+            readyScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            background.draw();
+            pipes.draw();
+            coinManager.draw();
+            diamondManager.draw();
+            
+            scoreBoard.draw();
+            coinScoreBoard.draw();
+            diamondScoreBoard.draw();
+            bird.draw();
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+            
+            frames++;
+            bird.update();
+            pipes.update();
+            coinManager.update();
+            diamondManager.update();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function scaleGameObjects() {
+            const scale = gameSettings.scale;
+            
+            bird.width = 87 * scale;
+            bird.height = 75 * scale;
+            bird.x = 80 * scale;
+            bird.gravity = 0.4 * scale;
+            bird.lift = -9 * scale;
+            
+            pipes.gap = 250 * scale;
+            pipes.dx = 3 * scale;
+            pipes.width = 96 * scale;
+            pipes.pipeHeight = 640 * scale;
+            
+            coinManager.width = 28 * scale;
+            coinManager.height = 28 * scale;
+            coinManager.dx = 3 * scale;
+            
+            diamondManager.width = 28 * scale;
+            diamondManager.height = 28 * scale;
+            diamondManager.dx = 3 * scale;
+        }
+        
+        function scaleLobby() {
+            const scale = gameSettings.scale;
+            
+            const lobbyDuck = document.getElementById('lobbyDuck');
+            if (lobbyDuck) {
+                lobbyDuck.style.width = `${261 * scale}px`;
+                lobbyDuck.style.height = `${225 * scale}px`;
+                lobbyDuck.style.marginBottom = `${250 * scale}px`;
+            }
+            
+            const startButton = document.getElementById('lobbyStartButton');
+            if (startButton) {
+                startButton.style.width = `${200 * scale}px`;
+                startButton.style.height = `${80 * scale}px`;
+                startButton.style.bottom = `${120 * scale}px`;
+            }
+            
+            const statImages = document.querySelectorAll('.stat-image');
+            statImages.forEach(img => {
+                img.style.width = `${40 * scale}px`;
+                img.style.height = `${40 * scale}px`;
+            });
+            
+            const statValues = document.querySelectorAll('.stat-value');
+            statValues.forEach(stat => {
+                stat.style.fontSize = `${28 * scale}px`;
+            });
+        }
+
+        function resizeCanvas() {
+            const container = gameContainer;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            gameSettings.baseWidth = 430;
+            gameSettings.baseHeight = 932;
+            gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
+            gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
+            gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
+            
+            scaleGameObjects();
+            scaleLobby();
+        }
+
+        function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(function(error) {
+                    console.log('Ориентация не заблокирована: ', error);
+                });
+            }
+            else if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+                window.screen.orientation.lock('portrait').catch(function(error) {
+                    console.log('Ориентация не заблокирована: ', error);
+                });
+            }
+            
+            window.addEventListener('orientationchange', function() {
+                setTimeout(resizeCanvas, 100);
+            });
+        }
+
+        function handleReadyScreenClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (gameState === 'ready') {
+                startPlaying();
+            }
+            return false;
+        }
+
+        function handleGameInput(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (gameState === 'playing') {
+                bird.flap();
+            }
+            return false;
+        }
+
+        function handleResize() {
+            resizeCanvas();
+            
+            if (gameState === 'ready') {
+                draw();
+            }
+        }
+
+        async function init() {
+            // Проверяем поддержку canvas
+            if (!canvas.getContext) {
+                alert('Ваш браузер не поддерживает HTML5 Canvas. Пожалуйста, обновите браузер.');
+                return;
+            }
+            
+            // Ожидаем загрузки изображений
+            const imagePromises = Object.values(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+            });
+            
+            await Promise.all(imagePromises);
+            
+            resizeCanvas();
+            
+            try {
+                lockOrientation();
+            } catch (e) {
+                console.log('Orientation lock not supported:', e);
+            }
+            
+            readyScreen.addEventListener('touchstart', handleReadyScreenClick, { passive: false });
+            readyScreen.addEventListener('click', handleReadyScreenClick, { passive: false });
+            
+            canvas.addEventListener('touchstart', handleGameInput, { passive: false });
+            canvas.addEventListener('click', handleGameInput, { passive: false });
+            
+            lobbyStartButton.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                await resetGame();
+            }, { passive: false });
+            
+            restartButton.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                await resetGame();
+            }, { passive: false });
+            
+            toLobbyButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                showLobby();
+            }, { passive: false });
+            
+            let resizeTimeout;
+            function debouncedResize() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    resizeCanvas();
+                }, 100);
+            }
+            
+            window.addEventListener('resize', debouncedResize);
+            window.addEventListener('orientationchange', debouncedResize);
+            
+            gameContainer.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            document.addEventListener('gesturestart', function(e) {
+                e.preventDefault();
+            });
+            
+            bird.init();
+            
+            await loadProgress();
+            
+            // Начинаем с лобби
+            showLobby();
+            
+            // Запускаем игровой цикл
+            gameLoop();
+            
+            if (telegram.WebApp) {
+                setTimeout(() => {
+                    try {
+                        if (!telegram.WebApp.isExpanded) {
+                            telegram.WebApp.expand();
+                        }
+                        
+                        setTimeout(() => {
+                            resizeCanvas();
+                        }, 500);
+                    } catch (e) {
+                        console.log('Telegram WebApp error:', e);
+                    }
+                }, 300);
+            } else {
+                setTimeout(() => {
+                    resizeCanvas();
+                }, 300);
+            }
+        }
+
+        // Запускаем игру когда DOM загружен
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            setTimeout(init, 100);
+        }
+    </script>
+</body>
+</html>
