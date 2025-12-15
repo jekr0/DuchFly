@@ -469,8 +469,6 @@
                 telegramInfo.textContent = `Привет, ${userName}!`;
                 telegramInfo.style.display = 'block';
                 
-                console.log('Telegram Mini App инициализировано. Пользователь:', user);
-                
                 return {
                     WebApp,
                     user,
@@ -549,7 +547,7 @@
         images.pipeTop.src = 'images/PipeDown.png';
         images.pipeBottom.src = 'images/PipeDown.png';
         images.background.src = 'images/Game.png';
-        images.scoreBoard.src = 'images/RecordScore.png'; // Изменено на RecordScore
+        images.scoreBoard.src = 'images/RecordScore.png'; // Изменено на RecordScore.png
         images.coin.src = 'images/Coin.png';
         images.coinScoreBoard.src = 'images/CoinScore.png';
         images.diamond.src = 'images/Emerald.png';
@@ -580,8 +578,6 @@
                     if (savedCoins) totalCoins = parseInt(savedCoins);
                     if (savedDiamonds) totalDiamonds = parseInt(savedDiamonds);
                     if (savedHighScore) highScore = parseInt(savedHighScore);
-                    
-                    console.log('Прогресс загружен:', { totalCoins, totalDiamonds, highScore });
                 } catch (error) {
                     console.error('Ошибка загрузки прогресса:', error);
                 }
@@ -604,7 +600,6 @@
                     await telegram.cloudStorage.setItem('totalCoins', totalCoins.toString());
                     await telegram.cloudStorage.setItem('totalDiamonds', totalDiamonds.toString());
                     await telegram.cloudStorage.setItem('highScore', highScore.toString());
-                    console.log('Прогресс сохранен в облако:', { totalCoins, totalDiamonds, highScore });
                 } catch (error) {
                     console.error('Ошибка сохранения прогресса:', error);
                 }
@@ -724,8 +719,7 @@
                 for (let i = 0; i < this.position.length; i++) {
                     let p = this.position[i];
                     
-                    if (images.pipeTop.complete && images.pipeBottom.complete && 
-                        images.pipeTop.naturalWidth > 0 && images.pipeBottom.naturalWidth > 0) {
+                    if (images.pipeTop.complete && images.pipeBottom.complete) {
                         ctx.save();
                         ctx.translate(p.x + this.width/2, p.y + this.pipeHeight/2);
                         ctx.rotate(Math.PI);
@@ -748,10 +742,10 @@
                 if (gameState !== 'playing') return;
                 
                 if (frames % 100 === 0) {
-                    const skyHeight = Math.max(100, gameSettings.safeAreaTop + 20);
-                    const groundHeight = 100;
+                    const skyHeight = Math.max(100 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                    const groundHeight = 100 * gameSettings.scale;
                     const playableHeight = canvas.height - skyHeight - groundHeight;
-                    const minPipeHeight = 100;
+                    const minPipeHeight = 100 * gameSettings.scale;
                     const maxPipeHeight = playableHeight - this.gap - minPipeHeight;
                     
                     if (maxPipeHeight > minPipeHeight) {
@@ -781,7 +775,7 @@
                 
                 for (let i = this.position.length - 1; i >= 0; i--) {
                     let p = this.position[i];
-                    p.x -= this.dx * gameSettings.scale;
+                    p.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
                     
                     if (this.collision(bird, p)) {
                         gameOver();
@@ -837,7 +831,7 @@
                 for (let i = 0; i < this.items.length; i++) {
                     let coin = this.items[i];
                     
-                    if (images.coin.complete && images.coin.naturalWidth > 0) {
+                    if (images.coin.complete) {
                         ctx.drawImage(images.coin, coin.x, coin.y, this.width, this.height);
                     } else {
                         ctx.fillStyle = '#FFD700';
@@ -853,10 +847,10 @@
                 
                 for (let i = this.items.length - 1; i >= 0; i--) {
                     let coin = this.items[i];
-                    coin.x -= this.dx * gameSettings.scale;
+                    coin.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
                     
                     coin.animationTime += this.animationSpeed;
-                    coin.y = coin.baseY + Math.sin(coin.animationTime) * 10;
+                    coin.y = coin.baseY + Math.sin(coin.animationTime) * 10 * gameSettings.scale;
                     
                     if (this.collection(bird, coin)) {
                         this.items.splice(i, 1);
@@ -909,7 +903,7 @@
                 for (let i = 0; i < this.items.length; i++) {
                     let diamond = this.items[i];
                     
-                    if (images.diamond.complete && images.diamond.naturalWidth > 0) {
+                    if (images.diamond.complete) {
                         ctx.drawImage(images.diamond, diamond.x, diamond.y, this.width, this.height);
                     } else {
                         ctx.fillStyle = '#00BFFF';
@@ -929,10 +923,10 @@
                 
                 for (let i = this.items.length - 1; i >= 0; i--) {
                     let diamond = this.items[i];
-                    diamond.x -= this.dx * gameSettings.scale;
+                    diamond.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
                     
                     diamond.animationTime += this.animationSpeed;
-                    diamond.y = diamond.baseY + Math.sin(diamond.animationTime) * 10;
+                    diamond.y = diamond.baseY + Math.sin(diamond.animationTime) * 10 * gameSettings.scale;
                     
                     if (this.collection(bird, diamond)) {
                         this.items.splice(i, 1);
@@ -977,7 +971,7 @@
         function createCoin() {
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
-                const coinX = lastPipe.x + pipes.width + 50;
+                const coinX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
                 const baseY = Math.max(0, Math.min(canvas.height - coinManager.height, 
                     lastPipe.y + pipes.pipeHeight + pipes.gap/2 - coinManager.height/2));
                 
@@ -993,7 +987,7 @@
         function createDiamond() {
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
-                const diamondX = lastPipe.x + pipes.width + 50;
+                const diamondX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
                 const baseY = Math.max(0, Math.min(canvas.height - diamondManager.height,
                     lastPipe.y + pipes.pipeHeight + pipes.gap/2 - diamondManager.height/2));
                 
@@ -1008,7 +1002,7 @@
 
         const background = {
             draw() {
-                if (images.background.complete && images.background.naturalWidth > 0) {
+                if (images.background.complete) {
                     ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
                 } else {
                     ctx.fillStyle = '#87CEEB';
@@ -1024,7 +1018,7 @@
                 const width = 138 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
-                if (images.scoreBoard.complete && images.scoreBoard.naturalWidth > 0) {
+                if (images.scoreBoard.complete) {
                     ctx.drawImage(images.scoreBoard, x, y, width, height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -1050,7 +1044,7 @@
                 const width = 82 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
-                if (images.coinScoreBoard.complete && images.coinScoreBoard.naturalWidth > 0) {
+                if (images.coinScoreBoard.complete) {
                     ctx.drawImage(images.coinScoreBoard, x, y, width, height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -1076,7 +1070,7 @@
                 const width = 82 * gameSettings.scale;
                 const height = 36 * gameSettings.scale;
                 
-                if (images.diamondScoreBoard.complete && images.diamondScoreBoard.naturalWidth > 0) {
+                if (images.diamondScoreBoard.complete) {
                     ctx.drawImage(images.diamondScoreBoard, x, y, width, height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -1221,8 +1215,11 @@
         function scaleLobby() {
             const scale = gameSettings.scale;
             
-            if (images.lobbyBackground.complete && images.lobbyBackground.naturalWidth > 0) {
+            if (images.lobbyBackground.complete) {
                 lobbyScreen.style.backgroundImage = `url('${images.lobbyBackground.src}')`;
+                lobbyScreen.style.backgroundSize = 'cover';
+                lobbyScreen.style.backgroundPosition = 'center';
+                lobbyScreen.style.backgroundRepeat = 'no-repeat';
             }
             
             const lobbyDuck = document.getElementById('lobbyDuck');
