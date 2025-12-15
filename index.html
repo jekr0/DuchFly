@@ -88,6 +88,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            cursor: pointer;
+            user-select: none;
         }
         
         #gameOverScreen {
@@ -188,7 +190,7 @@
             }
         }
         
-        /* Предотвращение поворота экрана - НОВОЕ */
+        /* Предотвращение поворота экрана */
         @media (orientation: landscape) {
             body {
                 transform: rotate(90deg);
@@ -1156,17 +1158,26 @@
             });
         }
 
-        // Управление для игры (клики/тапы по игровому полю)
+        // Обработчик для начала игры на экране ожидания
+        function handleReadyScreenClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (gameState === 'ready') {
+                startPlaying();
+            }
+            return false;
+        }
+
+        // Обработчик для управления птицей во время игры
         function handleGameInput(event) {
             event.preventDefault();
+            event.stopPropagation();
             
-            if (gameState === 'start') {
-                resetGame();
-            } else if (gameState === 'ready') {
-                startPlaying();
-            } else if (gameState === 'playing') {
+            if (gameState === 'playing') {
                 bird.flap();
             }
+            return false;
         }
 
         // Обработчик изменения размера окна
@@ -1190,7 +1201,12 @@
             // Блокируем ориентацию экрана
             lockOrientation();
             
-            // Добавляем обработчики событий для игрового поля (только canvas)
+            // Добавляем обработчики событий для экрана ожидания
+            readyScreen.addEventListener('touchstart', handleReadyScreenClick, { passive: false });
+            readyScreen.addEventListener('mousedown', handleReadyScreenClick, { passive: false });
+            readyScreen.addEventListener('click', handleReadyScreenClick, { passive: false });
+            
+            // Добавляем обработчики для игрового поля (canvas) для управления птицей
             canvas.addEventListener('touchstart', handleGameInput, { passive: false });
             canvas.addEventListener('mousedown', handleGameInput, { passive: false });
             
@@ -1215,6 +1231,13 @@
                     alert('Игра завершена. Закройте вкладку браузера.');
                 }
             }, { passive: true });
+            
+            // Добавляем обработчики для стартового экрана
+            startScreen.addEventListener('click', async function(e) {
+                if (e.target === startScreen) {
+                    await resetGame();
+                }
+            });
             
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
