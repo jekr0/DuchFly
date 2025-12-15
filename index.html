@@ -85,7 +85,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
+            display: none; /* Все экраны скрыты по умолчанию */
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -97,19 +97,21 @@
             transition: opacity 0.3s ease;
         }
         
-        .screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        /* Лобби экран */
+        /* Лобби экран - отображаем по умолчанию */
         #lobbyScreen {
+            display: flex;
+            background-image: url('images/Main.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             justify-content: space-between;
             padding-top: 40px;
             padding-bottom: 120px;
+        }
+        
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
         
         .lobby-content {
@@ -182,7 +184,6 @@
         }
         
         #readyScreen {
-            display: none;
             background: rgba(1, 1, 1, 0.3);
             flex-direction: column;
             justify-content: center;
@@ -192,7 +193,6 @@
         }
         
         #gameOverScreen {
-            display: none;
             background: rgba(0,0,0,0.8);
         }
         
@@ -378,7 +378,7 @@
         <div class="telegram-info" id="telegramInfo" style="display: none;"></div>
         <canvas id="gameCanvas"></canvas>
         
-        <!-- Экран лобби -->
+        <!-- Экран лобби - стартовый экран -->
         <div id="lobbyScreen" class="screen">
             <div class="lobby-content">
                 <!-- Статистика -->
@@ -547,7 +547,7 @@
         images.pipeTop.src = 'images/PipeDown.png';
         images.pipeBottom.src = 'images/PipeDown.png';
         images.background.src = 'images/Game.png';
-        images.scoreBoard.src = 'images/RecordScore.png'; // Изменено на RecordScore.png
+        images.scoreBoard.src = 'images/RecordScore.png';
         images.coin.src = 'images/Coin.png';
         images.coinScoreBoard.src = 'images/CoinScore.png';
         images.diamond.src = 'images/Emerald.png';
@@ -560,7 +560,7 @@
         let totalDiamonds = 0;
         let highScore = 0;
         
-        let gameState = 'lobby';
+        let gameState = 'lobby'; // Начинаем с лобби
         let score = 0;
         let coinsCount = 0;
         let diamondsCount = 0;
@@ -775,7 +775,7 @@
                 
                 for (let i = this.position.length - 1; i >= 0; i--) {
                     let p = this.position[i];
-                    p.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
+                    p.x -= this.dx * gameSettings.scale;
                     
                     if (this.collision(bird, p)) {
                         gameOver();
@@ -847,7 +847,7 @@
                 
                 for (let i = this.items.length - 1; i >= 0; i--) {
                     let coin = this.items[i];
-                    coin.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
+                    coin.x -= this.dx * gameSettings.scale;
                     
                     coin.animationTime += this.animationSpeed;
                     coin.y = coin.baseY + Math.sin(coin.animationTime) * 10 * gameSettings.scale;
@@ -923,7 +923,7 @@
                 
                 for (let i = this.items.length - 1; i >= 0; i--) {
                     let diamond = this.items[i];
-                    diamond.x -= this.dx * gameSettings.scale; // Корректируем скорость с учетом масштаба
+                    diamond.x -= this.dx * gameSettings.scale;
                     
                     diamond.animationTime += this.animationSpeed;
                     diamond.y = diamond.baseY + Math.sin(diamond.animationTime) * 10 * gameSettings.scale;
@@ -1154,7 +1154,6 @@
         }
 
         function hideAllScreens() {
-            lobbyScreen.style.display = 'none';
             readyScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
         }
@@ -1214,13 +1213,6 @@
         
         function scaleLobby() {
             const scale = gameSettings.scale;
-            
-            if (images.lobbyBackground.complete) {
-                lobbyScreen.style.backgroundImage = `url('${images.lobbyBackground.src}')`;
-                lobbyScreen.style.backgroundSize = 'cover';
-                lobbyScreen.style.backgroundPosition = 'center';
-                lobbyScreen.style.backgroundRepeat = 'no-repeat';
-            }
             
             const lobbyDuck = document.getElementById('lobbyDuck');
             if (lobbyDuck) {
@@ -1360,7 +1352,9 @@
             
             await loadProgress();
             
-            showLobby();
+            // Лобби уже отображается по умолчанию, просто обновляем статистику
+            updateLobbyStats();
+            resizeCanvas();
             
             gameLoop();
             
