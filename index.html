@@ -1092,7 +1092,7 @@
                 }
                 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
+                ctx.font = `bold ${22 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
                 const paddingRight = 15 * gameSettings.scale;
@@ -1314,7 +1314,7 @@
                 img.style.height = `${36 * scale}px`;
             });
             
-            // Масштабирование текста статистики
+            // Масштабирование текста статистики - ВСЕ 22px
             const statValues = document.querySelectorAll('.stat-value');
             statValues.forEach(stat => {
                 stat.style.fontSize = `${22 * scale}px`;
