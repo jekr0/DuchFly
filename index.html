@@ -136,12 +136,38 @@
             gap: 5px;
         }
         
+        /* Контейнер для изображения с текстом внутри */
+        .stat-image-container {
+            position: relative;
+            display: inline-block;
+        }
+        
         .stat-value {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
             font-family: 'PIXY', Arial, sans-serif;
             font-size: 28px;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             font-weight: bold;
+            pointer-events: none;
+        }
+        
+        /* Позиционирование текста для каждого типа изображения */
+        .coin-stat .stat-value {
+            left: 49px; /* Позиция внутри CoinScore.png */
+            transform: translateY(-50%);
+        }
+        
+        .record-stat .stat-value {
+            left: 24px; /* Позиция внутри RecordScore.png */
+            transform: translateY(-50%);
+        }
+        
+        .diamond-stat .stat-value {
+            left: 24px; /* Позиция внутри EmeraldScore.png */
+            transform: translateY(-50%);
         }
         
         /* Разные размеры для изображений статистики */
@@ -386,17 +412,23 @@
         <div id="lobbyScreen" class="screen">
             <div class="lobby-content">
                 <div class="lobby-stats">
-                    <div class="stat-container">
-                        <img src="images/CoinScore.png" alt="Монеты" class="coin-stat-image">
-                        <div class="stat-value" id="totalCoins">0</div>
+                    <div class="stat-container coin-stat">
+                        <div class="stat-image-container">
+                            <img src="images/CoinScore.png" alt="Монеты" class="coin-stat-image">
+                            <div class="stat-value" id="totalCoins">0</div>
+                        </div>
                     </div>
-                    <div class="stat-container">
-                        <img src="images/RecordScore.png" alt="Рекорд" class="record-stat-image"> <!-- Изменен класс -->
-                        <div class="stat-value" id="totalScore">0</div>
+                    <div class="stat-container record-stat">
+                        <div class="stat-image-container">
+                            <img src="images/RecordScore.png" alt="Рекорд" class="record-stat-image">
+                            <div class="stat-value" id="totalScore">0</div>
+                        </div>
                     </div>
-                    <div class="stat-container">
-                        <img src="images/EmeraldScore.png" alt="Алмазы" class="diamond-stat-image">
-                        <div class="stat-value" id="totalDiamonds">0</div>
+                    <div class="stat-container diamond-stat">
+                        <div class="stat-image-container">
+                            <img src="images/EmeraldScore.png" alt="Алмазы" class="diamond-stat-image">
+                            <div class="stat-value" id="totalDiamonds">0</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -1223,7 +1255,7 @@
                 startButton.style.bottom = `${120 * scale}px`;
             }
             
-            // Масштабирование изображений статистики с разными базовыми размерами
+            // Масштабирование изображений статистики
             const coinImages = document.querySelectorAll('.coin-stat-image');
             coinImages.forEach(img => {
                 img.style.width = `${82 * scale}px`;
@@ -1232,7 +1264,7 @@
             
             const recordImages = document.querySelectorAll('.record-stat-image');
             recordImages.forEach(img => {
-                img.style.width = `${138 * scale}px`;  // Изменено с 82px на 138px
+                img.style.width = `${138 * scale}px`;
                 img.style.height = `${36 * scale}px`;
             });
             
@@ -1242,9 +1274,26 @@
                 img.style.height = `${36 * scale}px`;
             });
             
+            // Масштабирование текста статистики
             const statValues = document.querySelectorAll('.stat-value');
             statValues.forEach(stat => {
                 stat.style.fontSize = `${28 * scale}px`;
+            });
+            
+            // Масштабирование позиции текста
+            const coinStats = document.querySelectorAll('.coin-stat .stat-value');
+            coinStats.forEach(stat => {
+                stat.style.left = `${49 * scale}px`;
+            });
+            
+            const recordStats = document.querySelectorAll('.record-stat .stat-value');
+            recordStats.forEach(stat => {
+                stat.style.left = `${24 * scale}px`;
+            });
+            
+            const diamondStats = document.querySelectorAll('.diamond-stat .stat-value');
+            diamondStats.forEach(stat => {
+                stat.style.left = `${24 * scale}px`;
             });
         }
 
