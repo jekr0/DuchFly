@@ -85,7 +85,6 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -95,6 +94,91 @@
             text-align: center;
             padding: 20px;
             box-sizing: border-box;
+            transition: opacity 0.3s ease;
+        }
+        
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* Лобби экран */
+        #lobbyScreen {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            justify-content: space-between;
+            padding-top: 40px;
+            padding-bottom: 120px;
+        }
+        
+        .lobby-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            justify-content: space-between;
+        }
+        
+        .lobby-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .stat-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .stat-value {
+            font-family: 'PIXY', Arial, sans-serif;
+            font-size: 28px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-weight: bold;
+        }
+        
+        .stat-image {
+            width: 40px;
+            height: 40px;
+        }
+        
+        #lobbyDuck {
+            width: 261px; /* 87 * 3 */
+            height: 225px; /* 75 * 3 */
+            margin-top: auto;
+            margin-bottom: 250px;
+        }
+        
+        .start-button {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 200px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+        }
+        
+        .start-button:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        
+        .start-button-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         
         #readyScreen {
@@ -109,6 +193,7 @@
         
         #gameOverScreen {
             display: none;
+            background: rgba(0,0,0,0.8);
         }
         
         button {
@@ -293,10 +378,33 @@
         <div class="telegram-info" id="telegramInfo" style="display: none;"></div>
         <canvas id="gameCanvas"></canvas>
         
-        <div id="startScreen" class="screen">
-            <h1>Duck Siders</h1>
-            <p>Нажимай, чтобы лететь!</p>
-            <button id="startButton">Начать игру</button>
+        <!-- Экран лобби -->
+        <div id="lobbyScreen" class="screen">
+            <div class="lobby-content">
+                <!-- Статистика -->
+                <div class="lobby-stats">
+                    <div class="stat-container">
+                        <img src="images/CoinScore.png" alt="Монеты" class="stat-image">
+                        <div class="stat-value" id="totalCoins">0</div>
+                    </div>
+                    <div class="stat-container">
+                        <img src="images/RecordScore.png" alt="Рекорд" class="stat-image">
+                        <div class="stat-value" id="totalScore">0</div>
+                    </div>
+                    <div class="stat-container">
+                        <img src="images/EmeraldScore.png" alt="Алмазы" class="stat-image">
+                        <div class="stat-value" id="totalDiamonds">0</div>
+                    </div>
+                </div>
+                
+                <!-- Птица -->
+                <img id="lobbyDuck" src="images/ClassicDuckSkin.png" alt="Duck">
+                
+                <!-- Кнопка старта -->
+                <button class="start-button" id="lobbyStartButton">
+                    <img src="images/StartBottom.png" alt="Начать игру" class="start-button-image">
+                </button>
+            </div>
         </div>
         
         <div id="readyScreen" class="screen">
@@ -313,7 +421,7 @@
             <div class="finalScore">Алмазы: <span id="finalDiamonds">0</span></div>
             <div id="highScoreDisplay" class="finalScore" style="display: none;">Рекорд: <span id="highScoreValue">0</span></div>
             <button id="restartButton">Играть снова</button>
-            <button id="closeButton" style="background: #ff4444; color: white; margin-top: 10px;">Закрыть игру</button>
+            <button id="toLobbyButton" style="background: #4444ff; color: white; margin-top: 10px;">В лобби</button>
         </div>
     </div>
 
@@ -412,17 +520,25 @@
         // Основные переменные игры
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Элементы интерфейса
         const finalScoreElement = document.getElementById('finalScore');
         const finalCoinsElement = document.getElementById('finalCoins');
         const finalDiamondsElement = document.getElementById('finalDiamonds');
-        const startScreen = document.getElementById('startScreen');
+        const lobbyScreen = document.getElementById('lobbyScreen');
         const readyScreen = document.getElementById('readyScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
-        const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
-        const closeButton = document.getElementById('closeButton');
+        const toLobbyButton = document.getElementById('toLobbyButton');
+        const lobbyStartButton = document.getElementById('lobbyStartButton');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
         const highScoreValue = document.getElementById('highScoreValue');
+        
+        // Элементы статистики лобби
+        const totalCoinsElement = document.getElementById('totalCoins');
+        const totalScoreElement = document.getElementById('totalScore');
+        const totalDiamondsElement = document.getElementById('totalDiamonds');
+        
         const gameContainer = document.getElementById('gameContainer');
 
         // Настройки игры с учетом safe area от Telegram
@@ -445,7 +561,10 @@
             coin: new Image(),
             coinScoreBoard: new Image(),
             diamond: new Image(),
-            diamondScoreBoard: new Image()
+            diamondScoreBoard: new Image(),
+            lobbyBackground: new Image(),
+            startButton: new Image(),
+            recordScore: new Image()
         };
 
         // Укажите здесь пути к вашим изображениям
@@ -458,56 +577,80 @@
         images.coinScoreBoard.src = 'images/CoinScore.png';
         images.diamond.src = 'images/Emerald.png';
         images.diamondScoreBoard.src = 'images/EmeraldScore.png';
+        images.lobbyBackground.src = 'images/Main.png';
+        images.startButton.src = 'images/StartBottom.png';
+        images.recordScore.src = 'images/RecordScore.png';
 
-        // Параметры игры
-        let gameState = 'start';
+        // Глобальные переменные для хранения прогресса
+        let totalCoins = 0;
+        let totalDiamonds = 0;
+        let highScore = 0;
+        
+        // Параметры текущей игры
+        let gameState = 'lobby';
         let score = 0;
         let coinsCount = 0;
         let diamondsCount = 0;
-        let highScore = 0;
         let frames = 0;
         let pipeCounter = 0;
         let diamondPipeCounter = 0;
         let isTouching = false;
 
-        // Загрузка рекорда из облачного хранилища Telegram
-        async function loadHighScore() {
+        // Загрузка прогресса из облачного хранилища Telegram
+        async function loadProgress() {
             if (telegram.cloudStorage) {
                 try {
-                    const savedScore = await telegram.cloudStorage.getItem('highScore');
-                    if (savedScore) {
-                        highScore = parseInt(savedScore);
-                        console.log('Рекорд загружен:', highScore);
-                    }
+                    const savedCoins = await telegram.cloudStorage.getItem('totalCoins');
+                    const savedDiamonds = await telegram.cloudStorage.getItem('totalDiamonds');
+                    const savedHighScore = await telegram.cloudStorage.getItem('highScore');
+                    
+                    if (savedCoins) totalCoins = parseInt(savedCoins);
+                    if (savedDiamonds) totalDiamonds = parseInt(savedDiamonds);
+                    if (savedHighScore) highScore = parseInt(savedHighScore);
+                    
+                    console.log('Прогресс загружен:', { totalCoins, totalDiamonds, highScore });
                 } catch (error) {
-                    console.error('Ошибка загрузки рекорда:', error);
+                    console.error('Ошибка загрузки прогресса:', error);
                 }
             } else {
                 // Локальное хранение для автономного режима
-                const savedScore = localStorage.getItem('duckSidersHighScore');
-                if (savedScore) {
-                    highScore = parseInt(savedScore);
+                const savedCoins = localStorage.getItem('totalCoins');
+                const savedDiamonds = localStorage.getItem('totalDiamonds');
+                const savedHighScore = localStorage.getItem('highScore');
+                
+                if (savedCoins) totalCoins = parseInt(savedCoins);
+                if (savedDiamonds) totalDiamonds = parseInt(savedDiamonds);
+                if (savedHighScore) highScore = parseInt(savedHighScore);
+            }
+            
+            // Обновляем отображение в лобби
+            updateLobbyStats();
+        }
+        
+        // Сохранение прогресса в облачное хранилище Telegram
+        async function saveProgress() {
+            if (telegram.cloudStorage) {
+                try {
+                    await telegram.cloudStorage.setItem('totalCoins', totalCoins.toString());
+                    await telegram.cloudStorage.setItem('totalDiamonds', totalDiamonds.toString());
+                    await telegram.cloudStorage.setItem('highScore', highScore.toString());
+                    console.log('Прогресс сохранен в облако:', { totalCoins, totalDiamonds, highScore });
+                } catch (error) {
+                    console.error('Ошибка сохранения прогресса:', error);
                 }
+            } else {
+                // Локальное хранение для автономного режима
+                localStorage.setItem('totalCoins', totalCoins.toString());
+                localStorage.setItem('totalDiamonds', totalDiamonds.toString());
+                localStorage.setItem('highScore', highScore.toString());
             }
         }
         
-        // Сохранение рекорда в облачное хранилище Telegram
-        async function saveHighScore(newScore) {
-            if (newScore > highScore) {
-                highScore = newScore;
-                
-                if (telegram.cloudStorage) {
-                    try {
-                        await telegram.cloudStorage.setItem('highScore', highScore.toString());
-                        console.log('Рекорд сохранен в облако:', highScore);
-                    } catch (error) {
-                        console.error('Ошибка сохранения рекорда:', error);
-                    }
-                } else {
-                    // Локальное хранение для автономного режима
-                    localStorage.setItem('duckSidersHighScore', highScore.toString());
-                }
-            }
+        // Обновление статистики в лобби
+        function updateLobbyStats() {
+            totalCoinsElement.textContent = totalCoins;
+            totalScoreElement.textContent = highScore;
+            totalDiamondsElement.textContent = totalDiamonds;
         }
 
         // Тактильная отдача (виброотклик)
@@ -1040,8 +1183,18 @@
             finalCoinsElement.textContent = coinsCount;
             finalDiamondsElement.textContent = diamondsCount;
             
-            // Сохраняем рекорд
-            await saveHighScore(score);
+            // Добавляем монеты и алмазы к общим
+            totalCoins += coinsCount;
+            totalDiamonds += diamondsCount;
+            
+            // Проверяем и обновляем рекорд
+            if (score > highScore) {
+                highScore = score;
+            }
+            
+            // Сохраняем прогресс
+            await saveProgress();
+            updateLobbyStats();
             
             // Показываем рекорд, если он есть
             if (highScore > 0) {
@@ -1052,11 +1205,13 @@
             // Вибрация при проигрыше
             triggerHapticFeedback('error');
             
+            // Показываем экран окончания игры
+            hideAllScreens();
             gameOverScreen.style.display = 'flex';
         }
 
         async function resetGame() {
-            // Сбрасываем все игровые параметры
+            // Сбрасываем все игровые параметры текущей игры
             score = 0;
             coinsCount = 0;
             diamondsCount = 0;
@@ -1070,15 +1225,11 @@
             coinManager.reset();
             diamondManager.reset();
             
-            // Загружаем рекорд
-            await loadHighScore();
-            
             // Переходим в состояние "готов"
             gameState = 'ready';
             
             // Показываем экран готовности
-            startScreen.style.display = 'none';
-            gameOverScreen.style.display = 'none';
+            hideAllScreens();
             readyScreen.style.display = 'flex';
             
             // Обновляем размеры
@@ -1088,10 +1239,24 @@
             triggerHapticFeedback('light');
         }
 
+        function showLobby() {
+            gameState = 'lobby';
+            hideAllScreens();
+            lobbyScreen.style.display = 'flex';
+            updateLobbyStats();
+            resizeCanvas();
+        }
+
         function startPlaying() {
             gameState = 'playing';
-            readyScreen.style.display = 'none';
+            hideAllScreens();
             bird.flap();
+        }
+
+        function hideAllScreens() {
+            lobbyScreen.style.display = 'none';
+            readyScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
         }
 
         function draw() {
@@ -1173,6 +1338,44 @@
             diamondScoreBoard.textX = 340 * scale;
             diamondScoreBoard.textY = baseY + 18 * scale;
         }
+        
+        // Масштабирование элементов лобби
+        function scaleLobby() {
+            const scale = gameSettings.scale;
+            
+            // Устанавливаем фон лобби
+            if (images.lobbyBackground.complete && images.lobbyBackground.naturalWidth > 0) {
+                lobbyScreen.style.backgroundImage = `url('${images.lobbyBackground.src}')`;
+            }
+            
+            // Масштабируем размеры птицы в лобби
+            const lobbyDuck = document.getElementById('lobbyDuck');
+            if (lobbyDuck) {
+                lobbyDuck.style.width = `${261 * scale}px`;  // 87 * 3
+                lobbyDuck.style.height = `${225 * scale}px`; // 75 * 3
+                lobbyDuck.style.marginBottom = `${250 * scale}px`;
+            }
+            
+            // Масштабируем кнопку старта
+            const startButton = document.getElementById('lobbyStartButton');
+            if (startButton) {
+                startButton.style.width = `${200 * scale}px`;
+                startButton.style.height = `${80 * scale}px`;
+                startButton.style.bottom = `${120 * scale}px`;
+            }
+            
+            // Масштабируем статистику
+            const statImages = document.querySelectorAll('.stat-image');
+            statImages.forEach(img => {
+                img.style.width = `${40 * scale}px`;
+                img.style.height = `${40 * scale}px`;
+            });
+            
+            const statValues = document.querySelectorAll('.stat-value');
+            statValues.forEach(stat => {
+                stat.style.fontSize = `${28 * scale}px`;
+            });
+        }
 
         // Динамический расчет размеров
         function resizeCanvas() {
@@ -1194,8 +1397,11 @@
             // Масштабируем игровые объекты
             scaleGameObjects();
             
+            // Масштабируем элементы лобби
+            scaleLobby();
+            
             // Принудительно перерисовываем экран
-            if (gameState === 'ready' || gameState === 'start') {
+            if (gameState === 'ready' || gameState === 'lobby') {
                 draw();
             }
         }
@@ -1252,7 +1458,7 @@
             bird.init();
             
             // Принудительно перерисовываем экран
-            if (gameState === 'ready' || gameState === 'start') {
+            if (gameState === 'ready' || gameState === 'lobby') {
                 draw();
             }
         }
@@ -1274,35 +1480,24 @@
             canvas.addEventListener('touchstart', handleGameInput, { passive: false });
             canvas.addEventListener('mousedown', handleGameInput, { passive: false });
             
-            // Обработчики для кнопок (отдельно от игрового поля)
-            startButton.addEventListener('click', async function(e) {
+            // Обработчики для кнопок лобби
+            lobbyStartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
                 await resetGame();
             }, { passive: true });
             
+            // Обработчики для экрана окончания игры
             restartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
                 await resetGame();
             }, { passive: true });
             
-            closeButton.addEventListener('click', function(e) {
+            toLobbyButton.addEventListener('click', function(e) {
                 e.stopPropagation();
-                // Закрываем мини-приложение через Telegram API
-                if (telegram.WebApp && telegram.WebApp.close) {
-                    telegram.WebApp.close();
-                } else {
-                    // Альтернатива для автономного режима
-                    alert('Игра завершена. Закройте вкладку браузера.');
-                }
+                showLobby();
             }, { passive: true });
             
-            // Добавляем обработчики для стартового экрана
-            startScreen.addEventListener('click', async function(e) {
-                if (e.target === startScreen) {
-                    await resetGame();
-                }
-            });
-            
+            // Обработчики изменения размера
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
             
@@ -1320,8 +1515,11 @@
             // Инициализируем птицу
             bird.init();
             
-            // Загружаем рекорд при старте
-            await loadHighScore();
+            // Загружаем прогресс
+            await loadProgress();
+            
+            // Показываем лобби
+            showLobby();
             
             // Запускаем игровой цикл
             gameLoop();
