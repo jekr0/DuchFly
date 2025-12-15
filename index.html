@@ -3,11 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-orientations" content="portrait">
-    <meta name="screen-orientation" content="portrait">
-    <meta name="theme-color" content="#000000">
     <title>Duck Siders</title>
     <style>
         * {
@@ -27,7 +22,6 @@
             height: 100%;
             overflow: hidden;
             background: #000;
-            position: fixed;
         }
         
         body {
@@ -39,8 +33,6 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             padding: 0;
             margin: 0;
-            overscroll-behavior: none;
-            -webkit-overflow-scrolling: touch;
         }
         
         #gameContainer {
@@ -53,7 +45,6 @@
             overflow: hidden;
             margin: 0 auto;
             background: #000;
-            touch-action: none;
         }
         
         #gameCanvas {
@@ -61,7 +52,6 @@
             width: 100%;
             height: 100%;
             background: #87CEEB;
-            touch-action: none;
         }
         
         .screen {
@@ -108,9 +98,6 @@
             transition: transform 0.1s, opacity 0.2s;
             min-height: 44px;
             min-width: 44px;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
         }
         
         button:active {
@@ -134,6 +121,21 @@
         p {
             font-size: clamp(16px, 3.5vw, 20px);
             margin-bottom: 20px;
+        }
+
+        /* Временные стили для отладки */
+        .debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 200px;
+            overflow: auto;
         }
 
         /* Подключаем шрифт PIXY */
@@ -174,20 +176,6 @@
             }
         }
 
-        /* Предотвращение поворота экрана */
-        @media screen and (min-width: 320px) and (max-width: 767px) and (orientation: landscape) {
-            html {
-                transform: rotate(-90deg);
-                transform-origin: left top;
-                width: 100vh;
-                height: 100vw;
-                overflow-x: hidden;
-                position: absolute;
-                top: 100%;
-                left: 0;
-            }
-        }
-
         /* Медиа-запросы для различных соотношений сторон */
         @media (max-aspect-ratio: 9/16) {
             #gameContainer {
@@ -202,24 +190,11 @@
                 max-height: calc(100vw * 932/430);
             }
         }
-        
-        /* Запрет выделения текста на iOS */
-        * {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-        
-        input, textarea {
-            -webkit-user-select: auto;
-            user-select: auto;
-        }
     </style>
 </head>
 <body>
+    <div class="debug-info" id="debugInfo"></div>
+    
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         
@@ -246,6 +221,18 @@
     </div>
 
     <script>
+        // Функция для отладки
+        function debugLog(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.innerHTML += message + '<br>';
+            // Ограничим количество сообщений чтобы не перегружать
+            const lines = debugInfo.innerHTML.split('<br>');
+            if (lines.length > 20) {
+                lines.shift();
+            }
+            debugInfo.innerHTML = lines.join('<br>');
+        }
+
         // Основные переменные игры
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -259,6 +246,29 @@
         const restartButton = document.getElementById('restartButton');
         const gameContainer = document.getElementById('gameContainer');
 
+        // Динамический расчет размеров
+        function resizeCanvas() {
+            const container = gameContainer;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Устанавливаем размеры canvas равными размерам контейнера
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            // Обновляем базовые значения для адаптации игровых объектов
+            gameSettings.baseWidth = 430;
+            gameSettings.baseHeight = 932;
+            gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
+            gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
+            gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
+            
+            // Масштабируем игровые объекты
+            scaleGameObjects();
+            
+            debugLog(`Canvas: ${canvas.width}x${canvas.height}, Scale: ${gameSettings.scale.toFixed(2)}`);
+        }
+
         // Настройки игры с базовыми значениями для 430x932
         const gameSettings = {
             baseWidth: 430,
@@ -267,6 +277,54 @@
             scaleY: 1,
             scale: 1
         };
+
+        // Масштабирование всех игровых объектов
+        function scaleGameObjects() {
+            const scale = gameSettings.scale;
+            
+            // Птица
+            bird.width = 87 * scale;
+            bird.height = 75 * scale;
+            bird.x = 80 * scale;
+            bird.gravity = 0.4 * scale;
+            bird.lift = -9 * scale;
+            
+            // Трубы
+            pipes.gap = 250 * scale;
+            pipes.dx = 3 * scale;
+            pipes.width = 96 * scale;
+            pipes.pipeHeight = 640 * scale;
+            
+            // Монетки
+            coinManager.width = 28 * scale;
+            coinManager.height = 28 * scale;
+            coinManager.dx = 3 * scale;
+            
+            // Алмазы
+            diamondManager.width = 28 * scale;
+            diamondManager.height = 28 * scale;
+            diamondManager.dx = 3 * scale;
+            
+            // Счетчики - на высоте 120 (в базовых координатах)
+            scoreBoard.x = 146 * scale;
+            scoreBoard.y = 120 * scale;
+            scoreBoard.width = 138 * scale;
+            scoreBoard.height = 36 * scale;
+            
+            coinScoreBoard.x = 27 * scale;
+            coinScoreBoard.y = 120 * scale;
+            coinScoreBoard.width = 82 * scale;
+            coinScoreBoard.height = 36 * scale;
+            coinScoreBoard.textX = 76 * scale;
+            coinScoreBoard.textY = 138 * scale; // 120 + 36/2
+            
+            diamondScoreBoard.x = 316 * scale;
+            diamondScoreBoard.y = 120 * scale;
+            diamondScoreBoard.width = 82 * scale;
+            diamondScoreBoard.height = 36 * scale;
+            diamondScoreBoard.textX = 340 * scale;
+            diamondScoreBoard.textY = 138 * scale; // 120 + 36/2
+        }
 
         // Загрузка изображений
         const images = {
@@ -292,6 +350,10 @@
         images.diamond.src = 'images/Emerald.png';
         images.diamondScoreBoard.src = 'images/EmeraldScore.png';
 
+        let imagesLoaded = 0;
+        const totalImages = Object.keys(images).length;
+        let allImagesLoaded = false;
+
         // Параметры игры
         let gameState = 'start';
         let score = 0;
@@ -300,7 +362,6 @@
         let frames = 0;
         let pipeCounter = 0;
         let diamondPipeCounter = 0;
-        let isTouching = false;
 
         // Параметры птицы
         const bird = {
@@ -840,80 +901,11 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Масштабирование всех игровых объектов
-        function scaleGameObjects() {
-            const scale = gameSettings.scale;
-            
-            // Птица
-            bird.width = 87 * scale;
-            bird.height = 75 * scale;
-            bird.x = 80 * scale;
-            bird.gravity = 0.4 * scale;
-            bird.lift = -9 * scale;
-            
-            // Трубы
-            pipes.gap = 250 * scale;
-            pipes.dx = 3 * scale;
-            pipes.width = 96 * scale;
-            pipes.pipeHeight = 640 * scale;
-            
-            // Монетки
-            coinManager.width = 28 * scale;
-            coinManager.height = 28 * scale;
-            coinManager.dx = 3 * scale;
-            
-            // Алмазы
-            diamondManager.width = 28 * scale;
-            diamondManager.height = 28 * scale;
-            diamondManager.dx = 3 * scale;
-            
-            // Счетчики - на высоте 120 (в базовых координатах)
-            scoreBoard.x = 146 * scale;
-            scoreBoard.y = 120 * scale;
-            scoreBoard.width = 138 * scale;
-            scoreBoard.height = 36 * scale;
-            
-            coinScoreBoard.x = 27 * scale;
-            coinScoreBoard.y = 120 * scale;
-            coinScoreBoard.width = 82 * scale;
-            coinScoreBoard.height = 36 * scale;
-            coinScoreBoard.textX = 76 * scale;
-            coinScoreBoard.textY = 138 * scale;
-            
-            diamondScoreBoard.x = 316 * scale;
-            diamondScoreBoard.y = 120 * scale;
-            diamondScoreBoard.width = 82 * scale;
-            diamondScoreBoard.height = 36 * scale;
-            diamondScoreBoard.textX = 340 * scale;
-            diamondScoreBoard.textY = 138 * scale;
-        }
-
-        // Динамический расчет размеров
-        function resizeCanvas() {
-            const container = gameContainer;
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            
-            // Устанавливаем размеры canvas равными размерам контейнера
-            canvas.width = containerWidth;
-            canvas.height = containerHeight;
-            
-            // Обновляем базовые значения для адаптации игровых объектов
-            gameSettings.baseWidth = 430;
-            gameSettings.baseHeight = 932;
-            gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
-            gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
-            gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
-            
-            // Масштабируем игровые объекты
-            scaleGameObjects();
-        }
-
         // Управление
-        function handleStart(event) {
-            event.preventDefault();
-            if (isTouching) return;
-            isTouching = true;
+        function handleClick(event) {
+            if (event.target.tagName === 'BUTTON') {
+                return;
+            }
             
             if (gameState === 'start') {
                 resetGame();
@@ -924,33 +916,10 @@
             }
         }
 
-        function handleEnd(event) {
-            event.preventDefault();
-            isTouching = false;
-        }
-
         // Обработчик изменения размера окна
         function handleResize() {
             resizeCanvas();
-            bird.init();
-        }
-
-        // Блокировка ориентации экрана
-        function lockOrientation() {
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('portrait').catch(function(error) {
-                    console.log('Ориентация не заблокирована: ', error);
-                });
-            }
-            
-            // Для iOS
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('orientationchange', function() {
-                    if (window.orientation !== 0) {
-                        window.scrollTo(0, 0);
-                    }
-                });
-            }
+            bird.init(); // Переинициализируем птицу при изменении размера
         }
 
         // Инициализация
@@ -958,45 +927,21 @@
             // Устанавливаем начальный размер
             resizeCanvas();
             
-            // Блокируем ориентацию экрана
-            lockOrientation();
-            
             // Добавляем обработчики событий
-            gameContainer.addEventListener('touchstart', handleStart, { passive: false });
-            gameContainer.addEventListener('touchend', handleEnd, { passive: false });
-            gameContainer.addEventListener('touchcancel', handleEnd, { passive: false });
-            gameContainer.addEventListener('mousedown', handleStart, { passive: false });
-            gameContainer.addEventListener('mouseup', handleEnd, { passive: false });
-            
-            startButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                resetGame();
-            });
-            
-            restartButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                resetGame();
-            });
-            
+            gameContainer.addEventListener('click', handleClick);
+            startButton.addEventListener('click', resetGame);
+            restartButton.addEventListener('click', resetGame);
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
-            
-            // Предотвращаем контекстное меню на длинное нажатие
-            gameContainer.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                return false;
-            });
-            
-            // Предотвращаем масштабирование на iOS
-            document.addEventListener('gesturestart', function(e) {
-                e.preventDefault();
-            });
             
             // Инициализируем птицу
             bird.init();
             
             // Запускаем игровой цикл
             gameLoop();
+            
+            debugLog('Игра инициализирована');
+            debugLog(`Размер контейнера: ${gameContainer.clientWidth}x${gameContainer.clientHeight}`);
         }
 
         // Запуск игры
