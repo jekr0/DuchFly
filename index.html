@@ -154,20 +154,26 @@
             pointer-events: none;
         }
         
-        /* Позиционирование текста для каждого типа изображения */
+        /* Обновленные стили для выравнивания текста */
+        /* Монеты: выравнивание по правому краю с отступом 15px */
         .coin-stat .stat-value {
-            left: 49px; /* Позиция внутри CoinScore.png */
-            transform: translateY(-50%);
+            right: 15px;
+            left: auto;
+            text-align: right;
         }
         
+        /* Рекорд: выравнивание по центру */
         .record-stat .stat-value {
-            left: 24px; /* Позиция внутри RecordScore.png */
-            transform: translateY(-50%);
+            left: 0;
+            right: 0;
+            text-align: center;
         }
         
+        /* Алмазы: выравнивание по левому краю с отступом 15px */
         .diamond-stat .stat-value {
-            left: 24px; /* Позиция внутри EmeraldScore.png */
-            transform: translateY(-50%);
+            left: 15px;
+            right: auto;
+            text-align: left;
         }
         
         /* Разные размеры для изображений статистики */
@@ -177,7 +183,7 @@
         }
         
         .record-stat-image {
-            width: 138px;  /* Изменено с 82px на 138px */
+            width: 138px;
             height: 36px;
         }
         
@@ -1083,9 +1089,10 @@
                 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
-                ctx.textAlign = 'left';
+                ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(coinsCount.toString(), x + 49 * gameSettings.scale, y + height/2);
+                const paddingRight = 15 * gameSettings.scale;
+                ctx.fillText(coinsCount.toString(), x + width - paddingRight, y + height/2);
             }
         };
 
@@ -1111,7 +1118,8 @@
                 ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(diamondsCount.toString(), x + 24 * gameSettings.scale, y + height/2);
+                const paddingLeft = 15 * gameSettings.scale;
+                ctx.fillText(diamondsCount.toString(), x + paddingLeft, y + height/2);
             }
         };
 
@@ -1280,20 +1288,25 @@
                 stat.style.fontSize = `${28 * scale}px`;
             });
             
-            // Масштабирование позиции текста
+            // Масштабирование позиции текста с учетом новых требований
             const coinStats = document.querySelectorAll('.coin-stat .stat-value');
             coinStats.forEach(stat => {
-                stat.style.left = `${49 * scale}px`;
+                stat.style.right = `${15 * scale}px`;
+                stat.style.textAlign = 'right';
             });
             
             const recordStats = document.querySelectorAll('.record-stat .stat-value');
             recordStats.forEach(stat => {
-                stat.style.left = `${24 * scale}px`;
+                stat.style.textAlign = 'center';
+                // Для центрирования устанавливаем left и right в 0
+                stat.style.left = '0';
+                stat.style.right = '0';
             });
             
             const diamondStats = document.querySelectorAll('.diamond-stat .stat-value');
             diamondStats.forEach(stat => {
-                stat.style.left = `${24 * scale}px`;
+                stat.style.left = `${15 * scale}px`;
+                stat.style.textAlign = 'left';
             });
         }
 
