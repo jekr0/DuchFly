@@ -45,8 +45,6 @@
             overflow: hidden;
             margin: 0 auto;
             background: #000;
-            touch-action: none;
-            -webkit-user-drag: none;
         }
         
         #gameCanvas {
@@ -904,8 +902,7 @@
         }
 
         // Управление
-        function handleTap(event) {
-            event.preventDefault(); // Предотвращаем стандартное поведение
+        function handleClick(event) {
             if (event.target.tagName === 'BUTTON') {
                 return;
             }
@@ -929,27 +926,13 @@
         function init() {
             // Устанавливаем начальный размер
             resizeCanvas();
-
-            // Добавляем обработчики событий для мгновенного реагирования
-            gameContainer.addEventListener('touchstart', handleTap, { passive: false });
-            gameContainer.addEventListener('mousedown', handleTap);
             
             // Добавляем обработчики событий
+            gameContainer.addEventListener('click', handleClick);
             startButton.addEventListener('click', resetGame);
             restartButton.addEventListener('click', resetGame);
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
-
-            // Также обрабатываем клик для кнопок (для совместимости)
-            startButton.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                resetGame();
-            });
-            
-            restartButton.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                resetGame();
-            });
             
             // Инициализируем птицу
             bird.init();
