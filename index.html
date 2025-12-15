@@ -1153,7 +1153,9 @@
             bird.flap();
         }
 
+        // ИСПРАВЛЕНО: Функция теперь скрывает ВСЕ экраны
         function hideAllScreens() {
+            lobbyScreen.style.display = 'none';
             readyScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
         }
@@ -1314,6 +1316,7 @@
             
             lockOrientation();
             
+            // ИСПРАВЛЕНО: Добавляем обработчик клика на весь экран готовности
             readyScreen.addEventListener('touchstart', handleReadyScreenClick, { passive: false });
             readyScreen.addEventListener('mousedown', handleReadyScreenClick, { passive: false });
             readyScreen.addEventListener('click', handleReadyScreenClick, { passive: false });
@@ -1323,18 +1326,21 @@
             
             lobbyStartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
+                e.preventDefault();
                 await resetGame();
-            }, { passive: true });
+            }, { passive: false });
             
             restartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
+                e.preventDefault();
                 await resetGame();
-            }, { passive: true });
+            }, { passive: false });
             
             toLobbyButton.addEventListener('click', function(e) {
                 e.stopPropagation();
+                e.preventDefault();
                 showLobby();
-            }, { passive: true });
+            }, { passive: false });
             
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
@@ -1352,7 +1358,6 @@
             
             await loadProgress();
             
-            // Лобби уже отображается по умолчанию, просто обновляем статистику
             updateLobbyStats();
             resizeCanvas();
             
