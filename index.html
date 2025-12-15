@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-orientations" content="portrait">
@@ -41,6 +41,11 @@
             margin: 0;
             overscroll-behavior: none;
             -webkit-overflow-scrolling: touch;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
         
         #gameContainer {
@@ -54,6 +59,27 @@
             margin: 0 auto;
             background: #000;
             touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        @media screen and (orientation: landscape) {
+            #gameContainer {
+                max-width: 100vh;
+                max-height: 100vw;
+                transform: translate(-50%, -50%) rotate(90deg);
+                transform-origin: center;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+            }
+            
+            body {
+                overflow: hidden;
+            }
         }
         
         #gameCanvas {
@@ -80,6 +106,10 @@
             text-align: center;
             padding: 20px;
             box-sizing: border-box;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
         #readyScreen {
@@ -171,20 +201,6 @@
             100% {
                 transform: scale(1);
                 opacity: 1;
-            }
-        }
-
-        /* Предотвращение поворота экрана */
-        @media screen and (min-width: 320px) and (max-width: 767px) and (orientation: landscape) {
-            html {
-                transform: rotate(-90deg);
-                transform-origin: left top;
-                width: 100vh;
-                height: 100vw;
-                overflow-x: hidden;
-                position: absolute;
-                top: 100%;
-                left: 0;
             }
         }
 
@@ -975,23 +991,36 @@
         }
 
         async function resetGame() {
+            // Сбрасываем все игровые параметры
             score = 0;
             coinsCount = 0;
             diamondsCount = 0;
             frames = 0;
             pipeCounter = 0;
             diamondPipeCounter = 0;
+            
+            // Сбрасываем все объекты
             bird.init();
             pipes.reset();
             coinManager.reset();
             diamondManager.reset();
+            
+            // Загружаем рекорд
+            await loadHighScore();
+            
+            // Переходим в состояние "готов"
             gameState = 'ready';
+            
+            // Показываем экран готовности
             startScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
             readyScreen.style.display = 'flex';
             
-            // Загружаем рекорд при сбросе игры
-            await loadHighScore();
+            // Обновляем размеры
+            resizeCanvas();
+            
+            // Вибрация для подтверждения
+            triggerHapticFeedback('light');
         }
 
         function startPlaying() {
@@ -1099,13 +1128,58 @@
             
             // Масштабируем игровые объекты
             scaleGameObjects();
+            
+            // Принудительно перерисовываем экран
+            if (gameState === 'ready' || gameState === 'start') {
+                draw();
+            }
+        }
+
+        // Блокировка ориентации экрана
+        function lockOrientation() {
+            // Для современных браузеров
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(function(error) {
+                    console.log('Ориентация не заблокирована: ', error);
+                });
+            }
+            // Для iOS
+            else if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+                window.screen.orientation.lock('portrait').catch(function(error) {
+                    console.log('Ориентация не заблокирована: ', error);
+                });
+            }
+            
+            // Предотвращаем изменение ориентации через события
+            window.addEventListener('orientationchange', function() {
+                // Принудительно устанавливаем портретную ориентацию
+                if (Math.abs(window.orientation) === 90) {
+                    if (screen.orientation && screen.orientation.lock) {
+                        screen.orientation.lock('portrait');
+                    }
+                }
+            });
+            
+            // Предотвращаем масштабирование
+            document.addEventListener('gesturestart', function(e) {
+                e.preventDefault();
+            });
+            
+            // Предотвращаем зум на iOS
+            document.addEventListener('touchmove', function(e) {
+                if(e.scale !== 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
         }
 
         // Управление
         function handleStart(event) {
             event.preventDefault();
-            if (isTouching) return;
-            isTouching = true;
+            event.stopPropagation();
+            
+            // Предотвращаем множественные касания
+            if (event.touches && event.touches.length > 1) return;
             
             if (gameState === 'start') {
                 resetGame();
@@ -1114,34 +1188,27 @@
             } else if (gameState === 'playing') {
                 bird.flap();
             }
+            
+            return false;
         }
 
         function handleEnd(event) {
             event.preventDefault();
+            event.stopPropagation();
             isTouching = false;
+            return false;
         }
 
         // Обработчик изменения размера окна
         function handleResize() {
             resizeCanvas();
-            bird.init();
-        }
-
-        // Блокировка ориентации экрана
-        function lockOrientation() {
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('portrait').catch(function(error) {
-                    console.log('Ориентация не заблокирована: ', error);
-                });
-            }
             
-            // Для iOS
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('orientationchange', function() {
-                    if (window.orientation !== 0) {
-                        window.scrollTo(0, 0);
-                    }
-                });
+            // Переинициализируем птицу при изменении размера
+            bird.init();
+            
+            // Принудительно перерисовываем экран
+            if (gameState === 'ready' || gameState === 'start') {
+                draw();
             }
         }
 
@@ -1159,19 +1226,38 @@
             gameContainer.addEventListener('touchcancel', handleEnd, { passive: false });
             gameContainer.addEventListener('mousedown', handleStart, { passive: false });
             gameContainer.addEventListener('mouseup', handleEnd, { passive: false });
+            gameContainer.addEventListener('click', function(e) {
+                if (gameState === 'playing') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, { passive: false });
             
-            startButton.addEventListener('click', function(e) {
+            startButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
-                resetGame();
+                e.preventDefault();
+                await resetGame();
             });
             
-            restartButton.addEventListener('click', function(e) {
+            restartButton.addEventListener('click', async function(e) {
                 e.stopPropagation();
-                resetGame();
+                e.preventDefault();
+                
+                // Останавливаем текущую игру если она еще идет
+                gameState = 'gameover';
+                
+                // Скрываем экран Game Over сразу
+                gameOverScreen.style.display = 'none';
+                
+                // Даем небольшую задержку для анимации
+                setTimeout(async () => {
+                    await resetGame();
+                }, 100);
             });
             
             closeButton.addEventListener('click', function(e) {
                 e.stopPropagation();
+                e.preventDefault();
                 // Закрываем мини-приложение через Telegram API
                 if (telegram.WebApp && telegram.WebApp.close) {
                     telegram.WebApp.close();
