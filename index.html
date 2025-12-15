@@ -305,7 +305,7 @@
             diamondManager.height = 28 * scale;
             diamondManager.dx = 3 * scale;
             
-            // Позиции счетчиков
+            // Счетчики - на высоте 200 (в базовых координатах)
             scoreBoard.x = 146 * scale;
             scoreBoard.y = 200 * scale;
             scoreBoard.width = 138 * scale;
@@ -316,14 +316,14 @@
             coinScoreBoard.width = 82 * scale;
             coinScoreBoard.height = 36 * scale;
             coinScoreBoard.textX = 76 * scale;
-            coinScoreBoard.textY = (60 + 45/2) * scale;
+            coinScoreBoard.textY = 218 * scale; // 200 + 36/2
             
             diamondScoreBoard.x = 316 * scale;
             diamondScoreBoard.y = 200 * scale;
             diamondScoreBoard.width = 82 * scale;
             diamondScoreBoard.height = 36 * scale;
             diamondScoreBoard.textX = 340 * scale;
-            diamondScoreBoard.textY = (60 + 45/2) * scale;
+            diamondScoreBoard.textY = 218 * scale; // 200 + 36/2
         }
 
         // Загрузка изображений
@@ -730,14 +730,13 @@
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
                 const diamondX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
-                const gapCenterY = lastPipe.y + pipes.pipeHeight + pipes.gap/2;
                 const baseY = Math.max(0, Math.min(canvas.height - diamondManager.height,
                     lastPipe.y + pipes.pipeHeight + pipes.gap/2 - diamondManager.height/2));
                 
                 diamondManager.items.push({ 
                     x: diamondX, 
-                    y: clampedY,
-                    baseY: clampedY,
+                    y: baseY,
+                    baseY: baseY,
                     animationTime: Math.random() * Math.PI * 2
                 });
             }
@@ -789,7 +788,7 @@
             width: 82,
             height: 36,
             textX: 76,
-            textY: 82.5,
+            textY: 218, // y + height/2 = 200 + 18 = 218
             
             draw() {
                 if (images.coinScoreBoard.complete && images.coinScoreBoard.naturalWidth > 0) {
@@ -818,7 +817,7 @@
             width: 82,
             height: 36,
             textX: 340,
-            textY: 82.5,
+            textY: 218, // y + height/2 = 200 + 18 = 218
             
             draw() {
                 if (images.diamondScoreBoard.complete && images.diamondScoreBoard.naturalWidth > 0) {
