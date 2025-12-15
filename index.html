@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-orientations" content="portrait">
+    <meta name="screen-orientation" content="portrait">
+    <meta name="theme-color" content="#000000">
     <title>Duck Siders</title>
     <style>
         * {
@@ -22,6 +27,7 @@
             height: 100%;
             overflow: hidden;
             background: #000;
+            position: fixed;
         }
         
         body {
@@ -33,6 +39,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             padding: 0;
             margin: 0;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
         }
         
         #gameContainer {
@@ -45,6 +53,7 @@
             overflow: hidden;
             margin: 0 auto;
             background: #000;
+            touch-action: none;
         }
         
         #gameCanvas {
@@ -52,6 +61,7 @@
             width: 100%;
             height: 100%;
             background: #87CEEB;
+            touch-action: none;
         }
         
         .screen {
@@ -98,6 +108,9 @@
             transition: transform 0.1s, opacity 0.2s;
             min-height: 44px;
             min-width: 44px;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         button:active {
@@ -121,21 +134,6 @@
         p {
             font-size: clamp(16px, 3.5vw, 20px);
             margin-bottom: 20px;
-        }
-
-        /* Временные стили для отладки */
-        .debug-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px;
-            font-size: 12px;
-            z-index: 1000;
-            max-width: 300px;
-            max-height: 200px;
-            overflow: auto;
         }
 
         /* Подключаем шрифт PIXY */
@@ -176,6 +174,20 @@
             }
         }
 
+        /* Предотвращение поворота экрана */
+        @media screen and (min-width: 320px) and (max-width: 767px) and (orientation: landscape) {
+            html {
+                transform: rotate(-90deg);
+                transform-origin: left top;
+                width: 100vh;
+                height: 100vw;
+                overflow-x: hidden;
+                position: absolute;
+                top: 100%;
+                left: 0;
+            }
+        }
+
         /* Медиа-запросы для различных соотношений сторон */
         @media (max-aspect-ratio: 9/16) {
             #gameContainer {
@@ -190,12 +202,39 @@
                 max-height: calc(100vw * 932/430);
             }
         }
+        
+        /* Запрет выделения текста на iOS */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        input, textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
+        }
+        
+        /* Telegram Mini App специфические стили */
+        .telegram-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 50;
+        }
     </style>
 </head>
 <body>
-    <div class="debug-info" id="debugInfo"></div>
-    
     <div id="gameContainer">
+        <div class="telegram-info" id="telegramInfo" style="display: none;"></div>
         <canvas id="gameCanvas"></canvas>
         
         <div id="startScreen" class="screen">
@@ -216,23 +255,79 @@
             <div class="finalScore">Счет: <span id="finalScore">0</span></div>
             <div class="finalScore">Монетки: <span id="finalCoins">0</span></div>
             <div class="finalScore">Алмазы: <span id="finalDiamonds">0</span></div>
+            <div id="highScoreDisplay" class="finalScore" style="display: none;">Рекорд: <span id="highScoreValue">0</span></div>
             <button id="restartButton">Играть снова</button>
+            <button id="closeButton" style="background: #ff4444; color: white; margin-top: 10px;">Закрыть игру</button>
         </div>
     </div>
 
     <script>
-        // Функция для отладки
-        function debugLog(message) {
-            const debugInfo = document.getElementById('debugInfo');
-            debugInfo.innerHTML += message + '<br>';
-            // Ограничим количество сообщений чтобы не перегружать
-            const lines = debugInfo.innerHTML.split('<br>');
-            if (lines.length > 20) {
-                lines.shift();
+        // Telegram Mini App интеграция
+        function initTelegramIntegration() {
+            const telegramInfo = document.getElementById('telegramInfo');
+            
+            // Проверяем, запущено ли в Telegram
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+                const WebApp = window.Telegram.WebApp;
+                
+                // Уведомляем Telegram, что приложение готово
+                WebApp.ready();
+                
+                // Отключаем случайное закрытие при вертикальном свайпе
+                if (WebApp.disableVerticalSwipes) {
+                    WebApp.disableVerticalSwipes();
+                }
+                
+                // Запрашиваем полноэкранный иммерсивный режим
+                WebApp.expand();
+                
+                // Устанавливаем цвет фона, соответствующий игре
+                WebApp.setBackgroundColor('#87CEEB');
+                
+                // Получаем информацию о пользователе
+                const user = WebApp.initDataUnsafe.user;
+                const userId = user ? user.id : 'unknown';
+                const userName = user ? (user.first_name || 'Гость') : 'Гость';
+                
+                // Показываем информацию о пользователе
+                telegramInfo.textContent = `Привет, ${userName}!`;
+                telegramInfo.style.display = 'block';
+                
+                console.log('Telegram Mini App инициализировано. Пользователь:', user);
+                console.log('Платформа:', WebApp.platform);
+                console.log('Цветовая тема:', WebApp.colorScheme);
+                
+                return {
+                    WebApp,
+                    user,
+                    userId,
+                    userName,
+                    haptic: WebApp.HapticFeedback,
+                    cloudStorage: WebApp.CloudStorage
+                };
+            } else {
+                console.warn('Не запущено в Telegram. Работает в автономном режиме.');
+                telegramInfo.textContent = 'Автономный режим';
+                telegramInfo.style.display = 'block';
+                
+                // Создаем заглушки для функций Telegram
+                return {
+                    WebApp: null,
+                    user: null,
+                    userId: 'local_user',
+                    userName: 'Гость',
+                    haptic: {
+                        impactOccurred: () => console.log('Вибрация (эмуляция)'),
+                        notificationOccurred: () => console.log('Уведомление (эмуляция)')
+                    },
+                    cloudStorage: null
+                };
             }
-            debugInfo.innerHTML = lines.join('<br>');
         }
-
+        
+        // Инициализируем Telegram интеграцию сразу
+        const telegram = initTelegramIntegration();
+        
         // Основные переменные игры
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -244,87 +339,20 @@
         const gameOverScreen = document.getElementById('gameOverScreen');
         const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
+        const closeButton = document.getElementById('closeButton');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const highScoreValue = document.getElementById('highScoreValue');
         const gameContainer = document.getElementById('gameContainer');
 
-        // Динамический расчет размеров
-        function resizeCanvas() {
-            const container = gameContainer;
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            
-            // Устанавливаем размеры canvas равными размерам контейнера
-            canvas.width = containerWidth;
-            canvas.height = containerHeight;
-            
-            // Обновляем базовые значения для адаптации игровых объектов
-            gameSettings.baseWidth = 430;
-            gameSettings.baseHeight = 932;
-            gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
-            gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
-            gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
-            
-            // Масштабируем игровые объекты
-            scaleGameObjects();
-            
-            debugLog(`Canvas: ${canvas.width}x${canvas.height}, Scale: ${gameSettings.scale.toFixed(2)}`);
-        }
-
-        // Настройки игры с базовыми значениями для 430x932
+        // Настройки игры с учетом safe area от Telegram
         const gameSettings = {
             baseWidth: 430,
             baseHeight: 932,
             scaleX: 1,
             scaleY: 1,
-            scale: 1
+            scale: 1,
+            safeAreaTop: telegram.WebApp ? (telegram.WebApp.safeAreaInset?.top || 0) : 0
         };
-
-        // Масштабирование всех игровых объектов
-        function scaleGameObjects() {
-            const scale = gameSettings.scale;
-            
-            // Птица
-            bird.width = 87 * scale;
-            bird.height = 75 * scale;
-            bird.x = 80 * scale;
-            bird.gravity = 0.4 * scale;
-            bird.lift = -9 * scale;
-            
-            // Трубы
-            pipes.gap = 250 * scale;
-            pipes.dx = 3 * scale;
-            pipes.width = 96 * scale;
-            pipes.pipeHeight = 640 * scale;
-            
-            // Монетки
-            coinManager.width = 28 * scale;
-            coinManager.height = 28 * scale;
-            coinManager.dx = 3 * scale;
-            
-            // Алмазы
-            diamondManager.width = 28 * scale;
-            diamondManager.height = 28 * scale;
-            diamondManager.dx = 3 * scale;
-            
-            // Счетчики - на высоте 120 (в базовых координатах)
-            scoreBoard.x = 146 * scale;
-            scoreBoard.y = 120 * scale;
-            scoreBoard.width = 138 * scale;
-            scoreBoard.height = 36 * scale;
-            
-            coinScoreBoard.x = 27 * scale;
-            coinScoreBoard.y = 120 * scale;
-            coinScoreBoard.width = 82 * scale;
-            coinScoreBoard.height = 36 * scale;
-            coinScoreBoard.textX = 76 * scale;
-            coinScoreBoard.textY = 138 * scale; // 120 + 36/2
-            
-            diamondScoreBoard.x = 316 * scale;
-            diamondScoreBoard.y = 120 * scale;
-            diamondScoreBoard.width = 82 * scale;
-            diamondScoreBoard.height = 36 * scale;
-            diamondScoreBoard.textX = 340 * scale;
-            diamondScoreBoard.textY = 138 * scale; // 120 + 36/2
-        }
 
         // Загрузка изображений
         const images = {
@@ -350,18 +378,83 @@
         images.diamond.src = 'images/Emerald.png';
         images.diamondScoreBoard.src = 'images/EmeraldScore.png';
 
-        let imagesLoaded = 0;
-        const totalImages = Object.keys(images).length;
-        let allImagesLoaded = false;
-
         // Параметры игры
         let gameState = 'start';
         let score = 0;
         let coinsCount = 0;
         let diamondsCount = 0;
+        let highScore = 0;
         let frames = 0;
         let pipeCounter = 0;
         let diamondPipeCounter = 0;
+        let isTouching = false;
+
+        // Загрузка рекорда из облачного хранилища Telegram
+        async function loadHighScore() {
+            if (telegram.cloudStorage) {
+                try {
+                    const savedScore = await telegram.cloudStorage.getItem('highScore');
+                    if (savedScore) {
+                        highScore = parseInt(savedScore);
+                        console.log('Рекорд загружен:', highScore);
+                    }
+                } catch (error) {
+                    console.error('Ошибка загрузки рекорда:', error);
+                }
+            } else {
+                // Локальное хранение для автономного режима
+                const savedScore = localStorage.getItem('duckSidersHighScore');
+                if (savedScore) {
+                    highScore = parseInt(savedScore);
+                }
+            }
+        }
+        
+        // Сохранение рекорда в облачное хранилище Telegram
+        async function saveHighScore(newScore) {
+            if (newScore > highScore) {
+                highScore = newScore;
+                
+                if (telegram.cloudStorage) {
+                    try {
+                        await telegram.cloudStorage.setItem('highScore', highScore.toString());
+                        console.log('Рекорд сохранен в облако:', highScore);
+                    } catch (error) {
+                        console.error('Ошибка сохранения рекорда:', error);
+                    }
+                } else {
+                    // Локальное хранение для автономного режима
+                    localStorage.setItem('duckSidersHighScore', highScore.toString());
+                }
+            }
+        }
+
+        // Тактильная отдача (виброотклик)
+        function triggerHapticFeedback(type = 'light') {
+            if (telegram.haptic) {
+                try {
+                    switch(type) {
+                        case 'light':
+                            telegram.haptic.impactOccurred('light');
+                            break;
+                        case 'medium':
+                            telegram.haptic.impactOccurred('medium');
+                            break;
+                        case 'heavy':
+                            telegram.haptic.impactOccurred('heavy');
+                            break;
+                        case 'success':
+                            telegram.haptic.notificationOccurred('success');
+                            break;
+                        case 'error':
+                            telegram.haptic.notificationOccurred('error');
+                            break;
+                    }
+                } catch (error) {
+                    console.log('Вибрация не поддерживается:', error);
+                }
+            }
+        }
 
         // Параметры птицы
         const bird = {
@@ -430,6 +523,8 @@
             flap() {
                 this.velocity = this.lift;
                 this.rotation = -0.3;
+                // Легкая вибрация при взмахе
+                triggerHapticFeedback('light');
             }
         };
 
@@ -474,7 +569,7 @@
                 if (gameState !== 'playing') return;
                 
                 if (frames % 100 === 0) {
-                    const skyHeight = 100 * gameSettings.scale;
+                    const skyHeight = Math.max(100 * gameSettings.scale, gameSettings.safeAreaTop + 20);
                     const groundHeight = 100 * gameSettings.scale;
                     const playableHeight = canvas.height - skyHeight - groundHeight;
                     const minPipeHeight = 100 * gameSettings.scale;
@@ -594,6 +689,8 @@
                     if (this.collection(bird, coin)) {
                         this.items.splice(i, 1);
                         coinsCount++;
+                        // Вибрация при сборе монеты
+                        triggerHapticFeedback('light');
                     }
                     
                     if (coin.x + this.width <= 0) {
@@ -672,6 +769,8 @@
                     if (this.collection(bird, diamond)) {
                         this.items.splice(i, 1);
                         diamondsCount++;
+                        // Более сильная вибрация при сборе алмаза
+                        triggerHapticFeedback('medium');
                     }
                     
                     if (diamond.x + this.width <= 0) {
@@ -762,22 +861,26 @@
             height: 36,
             
             draw() {
+                // Корректируем позицию с учетом safe area
+                const adjustedY = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const currentY = adjustedY;
+                
                 if (images.scoreBoard.complete && images.scoreBoard.naturalWidth > 0) {
-                    ctx.drawImage(images.scoreBoard, this.x, this.y, this.width, this.height);
+                    ctx.drawImage(images.scoreBoard, this.x, currentY, this.width, this.height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    ctx.fillRect(this.x, currentY, this.width, this.height);
                     
                     ctx.strokeStyle = 'white';
                     ctx.lineWidth = 2 * gameSettings.scale;
-                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                    ctx.strokeRect(this.x, currentY, this.width, this.height);
                 }
                 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = `bold ${30 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(score.toString(), this.x + this.width/2, this.y + this.height/2);
+                ctx.fillText(score.toString(), this.x + this.width/2, currentY + this.height/2);
             }
         };
 
@@ -791,22 +894,27 @@
             textY: 138, // y + height/2 = 120 + 18 = 138
             
             draw() {
+                // Корректируем позицию с учетом safe area
+                const adjustedY = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const currentY = adjustedY;
+                const currentTextY = currentY + 18 * gameSettings.scale;
+                
                 if (images.coinScoreBoard.complete && images.coinScoreBoard.naturalWidth > 0) {
-                    ctx.drawImage(images.coinScoreBoard, this.x, this.y, this.width, this.height);
+                    ctx.drawImage(images.coinScoreBoard, this.x, currentY, this.width, this.height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    ctx.fillRect(this.x, currentY, this.width, this.height);
                     
                     ctx.strokeStyle = 'white';
                     ctx.lineWidth = 2 * gameSettings.scale;
-                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                    ctx.strokeRect(this.x, currentY, this.width, this.height);
                 }
                 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(coinsCount.toString(), this.textX, this.textY);
+                ctx.fillText(coinsCount.toString(), this.textX, currentTextY);
             }
         };
 
@@ -820,35 +928,53 @@
             textY: 138, // y + height/2 = 120 + 18 = 138
             
             draw() {
+                // Корректируем позицию с учетом safe area
+                const adjustedY = Math.max(120 * gameSettings.scale, gameSettings.safeAreaTop + 20);
+                const currentY = adjustedY;
+                const currentTextY = currentY + 18 * gameSettings.scale;
+                
                 if (images.diamondScoreBoard.complete && images.diamondScoreBoard.naturalWidth > 0) {
-                    ctx.drawImage(images.diamondScoreBoard, this.x, this.y, this.width, this.height);
+                    ctx.drawImage(images.diamondScoreBoard, this.x, currentY, this.width, this.height);
                 } else {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    ctx.fillRect(this.x, currentY, this.width, this.height);
                     
                     ctx.strokeStyle = 'white';
                     ctx.lineWidth = 2 * gameSettings.scale;
-                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                    ctx.strokeRect(this.x, currentY, this.width, this.height);
                 }
                 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = `bold ${25 * gameSettings.scale}px "PIXY", Arial, sans-serif`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(diamondsCount.toString(), this.textX, this.textY);
+                ctx.fillText(diamondsCount.toString(), this.textX, currentTextY);
             }
         };
 
         // Функции игры
-        function gameOver() {
+        async function gameOver() {
             gameState = 'gameover';
             finalScoreElement.textContent = score;
             finalCoinsElement.textContent = coinsCount;
             finalDiamondsElement.textContent = diamondsCount;
+            
+            // Сохраняем рекорд
+            await saveHighScore(score);
+            
+            // Показываем рекорд, если он есть
+            if (highScore > 0) {
+                highScoreValue.textContent = highScore;
+                highScoreDisplay.style.display = 'block';
+            }
+            
+            // Вибрация при проигрыше
+            triggerHapticFeedback('error');
+            
             gameOverScreen.style.display = 'flex';
         }
 
-        function resetGame() {
+        async function resetGame() {
             score = 0;
             coinsCount = 0;
             diamondsCount = 0;
@@ -863,6 +989,9 @@
             startScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
             readyScreen.style.display = 'flex';
+            
+            // Загружаем рекорд при сбросе игры
+            await loadHighScore();
         }
 
         function startPlaying() {
@@ -901,11 +1030,82 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // Масштабирование всех игровых объектов
+        function scaleGameObjects() {
+            const scale = gameSettings.scale;
+            
+            // Птица
+            bird.width = 87 * scale;
+            bird.height = 75 * scale;
+            bird.x = 80 * scale;
+            bird.gravity = 0.4 * scale;
+            bird.lift = -9 * scale;
+            
+            // Трубы
+            pipes.gap = 250 * scale;
+            pipes.dx = 3 * scale;
+            pipes.width = 96 * scale;
+            pipes.pipeHeight = 640 * scale;
+            
+            // Монетки
+            coinManager.width = 28 * scale;
+            coinManager.height = 28 * scale;
+            coinManager.dx = 3 * scale;
+            
+            // Алмазы
+            diamondManager.width = 28 * scale;
+            diamondManager.height = 28 * scale;
+            diamondManager.dx = 3 * scale;
+            
+            // Счетчики - на высоте 120 (в базовых координатах), но не меньше safeAreaTop + 20
+            const baseY = Math.max(120 * scale, gameSettings.safeAreaTop + 20);
+            
+            scoreBoard.x = 146 * scale;
+            scoreBoard.y = baseY;
+            scoreBoard.width = 138 * scale;
+            scoreBoard.height = 36 * scale;
+            
+            coinScoreBoard.x = 27 * scale;
+            coinScoreBoard.y = baseY;
+            coinScoreBoard.width = 82 * scale;
+            coinScoreBoard.height = 36 * scale;
+            coinScoreBoard.textX = 76 * scale;
+            coinScoreBoard.textY = baseY + 18 * scale;
+            
+            diamondScoreBoard.x = 316 * scale;
+            diamondScoreBoard.y = baseY;
+            diamondScoreBoard.width = 82 * scale;
+            diamondScoreBoard.height = 36 * scale;
+            diamondScoreBoard.textX = 340 * scale;
+            diamondScoreBoard.textY = baseY + 18 * scale;
+        }
+
+        // Динамический расчет размеров
+        function resizeCanvas() {
+            const container = gameContainer;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Устанавливаем размеры canvas равными размерам контейнера
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            // Обновляем базовые значения для адаптации игровых объектов
+            gameSettings.baseWidth = 430;
+            gameSettings.baseHeight = 932;
+            gameSettings.scaleX = containerWidth / gameSettings.baseWidth;
+            gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
+            gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
+            
+            // Масштабируем игровые объекты
+            scaleGameObjects();
+        }
+
         // Управление
-        function handleClick(event) {
-            if (event.target.tagName === 'BUTTON') {
-                return;
-            }
+        function handleStart(event) {
+            event.preventDefault();
+            if (isTouching) return;
+            isTouching = true;
             
             if (gameState === 'start') {
                 resetGame();
@@ -916,32 +1116,93 @@
             }
         }
 
+        function handleEnd(event) {
+            event.preventDefault();
+            isTouching = false;
+        }
+
         // Обработчик изменения размера окна
         function handleResize() {
             resizeCanvas();
-            bird.init(); // Переинициализируем птицу при изменении размера
+            bird.init();
+        }
+
+        // Блокировка ориентации экрана
+        function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(function(error) {
+                    console.log('Ориентация не заблокирована: ', error);
+                });
+            }
+            
+            // Для iOS
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('orientationchange', function() {
+                    if (window.orientation !== 0) {
+                        window.scrollTo(0, 0);
+                    }
+                });
+            }
         }
 
         // Инициализация
-        function init() {
+        async function init() {
             // Устанавливаем начальный размер
             resizeCanvas();
             
+            // Блокируем ориентацию экрана
+            lockOrientation();
+            
             // Добавляем обработчики событий
-            gameContainer.addEventListener('click', handleClick);
-            startButton.addEventListener('click', resetGame);
-            restartButton.addEventListener('click', resetGame);
+            gameContainer.addEventListener('touchstart', handleStart, { passive: false });
+            gameContainer.addEventListener('touchend', handleEnd, { passive: false });
+            gameContainer.addEventListener('touchcancel', handleEnd, { passive: false });
+            gameContainer.addEventListener('mousedown', handleStart, { passive: false });
+            gameContainer.addEventListener('mouseup', handleEnd, { passive: false });
+            
+            startButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                resetGame();
+            });
+            
+            restartButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                resetGame();
+            });
+            
+            closeButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Закрываем мини-приложение через Telegram API
+                if (telegram.WebApp && telegram.WebApp.close) {
+                    telegram.WebApp.close();
+                } else {
+                    // Альтернатива для автономного режима
+                    alert('Игра завершена. Закройте вкладку браузера.');
+                }
+            });
+            
             window.addEventListener('resize', handleResize);
             window.addEventListener('orientationchange', handleResize);
+            
+            // Предотвращаем контекстное меню на длинное нажатие
+            gameContainer.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Предотвращаем масштабирование на iOS
+            document.addEventListener('gesturestart', function(e) {
+                e.preventDefault();
+            });
             
             // Инициализируем птицу
             bird.init();
             
+            // Загружаем рекорд при старте
+            await loadHighScore();
+            
             // Запускаем игровой цикл
             gameLoop();
-            
-            debugLog('Игра инициализирована');
-            debugLog(`Размер контейнера: ${gameContainer.clientWidth}x${gameContainer.clientHeight}`);
         }
 
         // Запуск игры
