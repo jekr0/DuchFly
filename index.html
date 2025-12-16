@@ -167,6 +167,8 @@
             left: 0;
             right: 0;
             text-align: center;
+            top: calc(50% - 4px); /* Поднимаем на 4px выше центра */
+            transform: none; /* Убираем transform, так как используем top */
         }
         
         /* Алмазы: выравнивание по левому краю с отступом 14px */
@@ -1324,6 +1326,8 @@
             coinStats.forEach(stat => {
                 stat.style.right = `${14 * scale}px`;
                 stat.style.textAlign = 'right';
+                stat.style.top = '50%';
+                stat.style.transform = 'translateY(-50%)';
             });
             
             const recordStats = document.querySelectorAll('.record-stat .stat-value');
@@ -1331,12 +1335,16 @@
                 stat.style.textAlign = 'center';
                 stat.style.left = '0';
                 stat.style.right = '0';
+                stat.style.top = `calc(50% - ${4 * scale}px)`; // Поднимаем с учетом масштаба
+                stat.style.transform = 'none';
             });
             
             const diamondStats = document.querySelectorAll('.diamond-stat .stat-value');
             diamondStats.forEach(stat => {
                 stat.style.left = `${14 * scale}px`;
                 stat.style.textAlign = 'left';
+                stat.style.top = '50%';
+                stat.style.transform = 'translateY(-50%)';
             });
         }
 
