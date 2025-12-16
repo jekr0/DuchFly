@@ -167,7 +167,7 @@
             left: 0;
             right: 0;
             text-align: center;
-            top: calc(50% - 4px); /* Поднимаем на 4px выше центра */
+            top: calc(50% + 4px); /* Поднимаем на 4px выше центра */
             transform: none; /* Убираем transform, так как используем top */
         }
         
@@ -1335,7 +1335,7 @@
                 stat.style.textAlign = 'center';
                 stat.style.left = '0';
                 stat.style.right = '0';
-                stat.style.top = `calc(50% - ${4 * scale}px)`; // Поднимаем с учетом масштаба
+                stat.style.top = `calc(50% + ${4 * scale}px)`; // Поднимаем с учетом масштаба
                 stat.style.transform = 'none';
             });
             
