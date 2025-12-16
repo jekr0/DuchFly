@@ -742,38 +742,6 @@
             }
         };
 
-        // Функция для получения случайной высоты трубы
-        function getRandomPipeHeight() {
-            const skyHeight = getSafeTopMargin();
-            const groundHeight = 100 * gameSettings.scale;
-            const playableHeight = canvas.height - skyHeight - groundHeight;
-            const minPipeHeight = 100 * gameSettings.scale;
-            const gapHeight = pipes.gap;
-            
-            // Проверяем, что есть достаточно места для трубы и зазора
-            if (playableHeight < minPipeHeight * 2 + gapHeight) {
-                // Если места мало, возвращаем минимальные значения
-                return {
-                    topHeight: minPipeHeight,
-                    gapY: skyHeight + minPipeHeight + gapHeight/2
-                };
-            }
-            
-            // Максимальная высота верхней трубы
-            const maxTopHeight = playableHeight - gapHeight - minPipeHeight;
-            
-            // Генерируем случайную высоту для верхней трубы
-            const topHeight = minPipeHeight + Math.random() * (maxTopHeight - minPipeHeight);
-            
-            // Позиция середины зазора
-            const gapY = skyHeight + topHeight + gapHeight/2;
-            
-            return {
-                topHeight: topHeight,
-                gapY: gapY
-            };
-        }
-
         const pipes = {
             position: [],
             gap: 250,
@@ -786,25 +754,20 @@
                     let p = this.position[i];
                     
                     if (images.pipeTop.complete && images.pipeBottom.complete) {
-                        // Верхняя труба (перевернутая)
                         ctx.save();
                         ctx.translate(p.x + this.width/2, p.y + this.pipeHeight/2);
                         ctx.rotate(Math.PI);
                         ctx.drawImage(images.pipeTop, -this.width/2, -this.pipeHeight/2, this.width, this.pipeHeight);
                         ctx.restore();
                         
-                        // Нижняя труба
                         let bottomY = p.y + this.pipeHeight + this.gap;
                         ctx.drawImage(images.pipeBottom, p.x, bottomY, this.width, this.pipeHeight);
                     } else {
-                        // Запасной вариант отрисовки
                         ctx.fillStyle = '#75C235';
-                        // Верхняя труба
                         ctx.fillRect(p.x, p.y, this.width, this.pipeHeight);
                         
-                        // Нижняя труба
                         let bottomY = p.y + this.pipeHeight + this.gap;
-                        ctx.fillRect(p.x, bottomY, this.width, this.pipeHeight);
+                        ctx.fillRect(p.x, bottomY, this.width, canvas.height - bottomY);
                     }
                 }
             },
@@ -813,35 +776,32 @@
                 if (gameState !== 'playing') return;
                 
                 if (frames % 100 === 0) {
-                    const pipeData = getRandomPipeHeight();
+                    const skyHeight = getSafeTopMargin();
+                    const groundHeight = 100 * gameSettings.scale;
+                    const playableHeight = canvas.height - skyHeight - groundHeight;
+                    const minPipeHeight = 100 * gameSettings.scale;
+                    const maxPipeHeight = playableHeight - this.gap - minPipeHeight;
                     
-                    // Проверяем, что данные валидны
-                    if (pipeData.topHeight > 0) {
-                        // Высота верхней трубы
-                        const topHeight = pipeData.topHeight;
-                        // Позиция верхней трубы (отрицательная, так как труба идет вверх)
-                        const pipeY = getSafeTopMargin() - topHeight;
-                        
+                    if (maxPipeHeight > minPipeHeight) {
+                        const height = minPipeHeight + Math.random() * (maxPipeHeight - minPipeHeight);
+                    
                         this.position.push({
                             x: canvas.width,
-                            y: pipeY,
+                            y: skyHeight - height,
                             width: this.width,
-                            height: this.pipeHeight,
-                            gapY: pipeData.gapY
+                            height: this.pipeHeight
                         });
                         
                         pipeCounter++;
                         diamondPipeCounter++;
                         
-                        // Создаем монету в зазоре между трубами
                         if (pipeCounter >= 5 && Math.random() < 0.7) {
-                            createCoin(pipeData.gapY);
+                            createCoin();
                             pipeCounter = 0;
                         }
                         
-                        // Создаем алмаз в зазоре между трубами
                         if (diamondPipeCounter >= 8 && Math.random() < 0.5) {
-                            createDiamond(pipeData.gapY);
+                            createDiamond();
                             diamondPipeCounter = 0;
                         }
                     }
@@ -851,26 +811,8 @@
                     let p = this.position[i];
                     p.x -= this.dx * gameSettings.scale;
                     
-                    // Проверка столкновения с верхней трубой
-                    const birdInTopPipe = (
-                        bird.x + bird.width/2 > p.x &&
-                        bird.x - bird.width/2 < p.x + this.width &&
-                        bird.y - bird.height/2 < p.y + this.pipeHeight &&
-                        bird.y + bird.height/2 > p.y
-                    );
-                    
-                    // Проверка столкновения с нижней трубой
-                    const bottomY = p.y + this.pipeHeight + this.gap;
-                    const birdInBottomPipe = (
-                        bird.x + bird.width/2 > p.x &&
-                        bird.x - bird.width/2 < p.x + this.width &&
-                        bird.y - bird.height/2 < bottomY + this.pipeHeight &&
-                        bird.y + bird.height/2 > bottomY
-                    );
-                    
-                    if (birdInTopPipe || birdInBottomPipe) {
+                    if (this.collision(bird, p)) {
                         gameOver();
-                        return;
                     }
                     
                     if (p.x + this.width <= 0) {
@@ -894,13 +836,11 @@
                 const pipeGapTop = Math.max(0, pipe.y + this.pipeHeight);
                 const pipeGapBottom = pipeGapTop + this.gap;
                 
-                // Столкновение с верхней трубой
                 if (birdRight > pipe.x && birdLeft < pipeRight && 
                     birdTop < pipeGapTop && birdBottom > pipe.y) {
                     return true;
                 }
                 
-                // Столкновение с нижней трубой
                 if (birdRight > pipe.x && birdLeft < pipeRight && 
                     birdBottom > pipeGapBottom) {
                     return true;
@@ -1062,24 +1002,12 @@
             }
         };
 
-        function createCoin(gapY) {
+        function createCoin() {
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
                 const coinX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
-                
-                // Используем переданную позицию зазора или вычисляем из последней трубы
-                const actualGapY = gapY || (lastPipe.y + pipes.pipeHeight + pipes.gap/2);
-                
-                // Позиционируем монету в центре зазора
-                let baseY = actualGapY - coinManager.height/2;
-                
-                // Ограничиваем позицию, чтобы монета не выходила за пределы экрана
-                const skyHeight = getSafeTopMargin();
-                const groundHeight = 100 * gameSettings.scale;
-                baseY = Math.max(
-                    skyHeight + 20 * gameSettings.scale,
-                    Math.min(canvas.height - groundHeight - coinManager.height, baseY)
-                );
+                const baseY = Math.max(0, Math.min(canvas.height - coinManager.height, 
+                    lastPipe.y + pipes.pipeHeight + pipes.gap/2 - coinManager.height/2));
                 
                 coinManager.items.push({ 
                     x: coinX, 
@@ -1090,24 +1018,12 @@
             }
         }
 
-        function createDiamond(gapY) {
+        function createDiamond() {
             if (pipes.position.length > 0) {
                 const lastPipe = pipes.position[pipes.position.length - 1];
                 const diamondX = lastPipe.x + pipes.width + 50 * gameSettings.scale;
-                
-                // Используем переданную позицию зазора или вычисляем из последней трубы
-                const actualGapY = gapY || (lastPipe.y + pipes.pipeHeight + pipes.gap/2);
-                
-                // Позиционируем алмаз в центре зазора
-                let baseY = actualGapY - diamondManager.height/2;
-                
-                // Ограничиваем позицию, чтобы алмаз не выходил за пределы экрана
-                const skyHeight = getSafeTopMargin();
-                const groundHeight = 100 * gameSettings.scale;
-                baseY = Math.max(
-                    skyHeight + 20 * gameSettings.scale,
-                    Math.min(canvas.height - groundHeight - diamondManager.height, baseY)
-                );
+                const baseY = Math.max(0, Math.min(canvas.height - diamondManager.height,
+                    lastPipe.y + pipes.pipeHeight + pipes.gap/2 - diamondManager.height/2));
                 
                 diamondManager.items.push({ 
                     x: diamondX, 
