@@ -137,7 +137,6 @@
             gap: 5px;
         }
         
-        /* Контейнер для изображения с текстом внутри */
         .stat-image-container {
             position: relative;
             display: inline-block;
@@ -154,31 +153,26 @@
             pointer-events: none;
         }
         
-        /* Обновленные стили для выравнивания текста */
-        /* Монеты: выравнивание по правому краю с отступом 14px */
         .coin-stat .stat-value {
             right: 14px;
             left: auto;
             text-align: right;
         }
         
-        /* Рекорд: выравнивание по центру */
         .record-stat .stat-value {
             left: 0;
             right: 0;
             text-align: center;
-            top: calc(50% + 4px); /* Поднимаем на 4px выше центра */
-            transform: none; /* Убираем transform, так как используем top */
+            top: calc(50% + 4px);
+            transform: none;
         }
         
-        /* Алмазы: выравнивание по левому краю с отступом 14px */
         .diamond-stat .stat-value {
             left: 14px;
             right: auto;
             text-align: left;
         }
         
-        /* Разные размеры для изображений статистики */
         .coin-stat-image {
             width: 82px;
             height: 36px;
@@ -464,7 +458,7 @@
     </div>
 
     <script>
-        // Telegram Mini App интеграция
+        // Telegram Mini App интеграция с полноэкранным режимом
         function initTelegramIntegration() {
             const telegramInfo = document.getElementById('telegramInfo');
             
@@ -476,28 +470,36 @@
                 
                 setTimeout(() => {
                     WebApp.expand();
-                    if (WebApp.viewportHeight && WebApp.viewportStableHeight) {
-                        const fullHeight = Math.max(WebApp.viewportHeight, WebApp.viewportStableHeight);
-                        WebApp.MainButton.showProgress();
-                        setTimeout(() => {
-                            WebApp.MainButton.hideProgress();
-                        }, 300);
+                    
+                    if (WebApp.requestFullscreen) {
+                        WebApp.requestFullscreen().catch(error => {
+                            console.log('Не удалось перейти в полноэкранный режим:', error);
+                            telegramInfo.textContent += ' (Обычный режим)';
+                        });
                     }
-                }, 300);
+                    
+                    if (WebApp.disableVerticalSwipes) {
+                        WebApp.disableVerticalSwipes();
+                    }
+                }, 50);
                 
                 WebApp.setHeaderColor('#87CEEB');
                 WebApp.setBackgroundColor('#87CEEB');
                 WebApp.enableClosingConfirmation();
                 
-                if (WebApp.disableVerticalSwipes) {
-                    WebApp.disableVerticalSwipes();
-                }
-                
-                if (WebApp.BackButton && WebApp.BackButton.isVisible) {
+                if (WebApp.BackButton) {
                     WebApp.BackButton.show();
                     WebApp.BackButton.onClick(() => {
+                        if (WebApp.isFullscreen) {
+                            WebApp.exitFullscreen();
+                        }
                         WebApp.close();
                     });
+                }
+                
+                if (WebApp.onEvent) {
+                    WebApp.onEvent('fullscreenChanged', handleFullscreenChange);
+                    WebApp.onEvent('viewportChanged', handleResize);
                 }
                 
                 const user = WebApp.initDataUnsafe.user;
@@ -533,6 +535,22 @@
             }
         }
         
+        function handleFullscreenChange() {
+            const WebApp = window.Telegram?.WebApp;
+            if (!WebApp) return;
+            
+            gameSettings.isFullscreen = WebApp.isFullscreen || false;
+            
+            if (gameSettings.isFullscreen) {
+                setTimeout(() => {
+                    resizeCanvas();
+                    if (gameState === 'ready' || gameState === 'lobby') {
+                        draw();
+                    }
+                }, 100);
+            }
+        }
+        
         const telegram = initTelegramIntegration();
         
         const canvas = document.getElementById('gameCanvas');
@@ -565,7 +583,8 @@
             scale: 1,
             safeAreaTop: 0,
             isTelegram: telegram.WebApp !== null,
-            isExpanded: false
+            isExpanded: false,
+            isFullscreen: false
         };
 
         const images = {
@@ -1128,25 +1147,19 @@
             }
         };
 
-        // Функция для получения безопасного отступа сверху
         function getSafeTopMargin() {
-            // Базовый отступ 120px, масштабируемый
+            const WebApp = window.Telegram?.WebApp;
             const baseMargin = 120 * gameSettings.scale;
             
-            // Если это Telegram и есть безопасная зона, используем ее
-            if (telegram.WebApp && telegram.WebApp.safeAreaInset) {
-                const safeTop = telegram.WebApp.safeAreaInset.top || 0;
-                // Используем безопасную зону + 20px для отступа от верхнего края
-                return Math.max(baseMargin, safeTop + 20);
+            if (WebApp) {
+                if (gameSettings.isFullscreen && WebApp.safeAreaInset) {
+                    const safeTop = WebApp.safeAreaInset.top || 0;
+                    return Math.max(baseMargin, safeTop + 20);
+                }
+                if (WebApp.isExpanded) {
+                    return Math.max(baseMargin, 40);
+                }
             }
-            
-            // Если это полноэкранный режим Telegram
-            if (gameSettings.isTelegram && gameSettings.isExpanded) {
-                // Используем фиксированный отступ для статус-бара
-                return Math.max(baseMargin, 40);
-            }
-            
-            // В автономном режиме или если не Telegram
             return baseMargin;
         }
 
@@ -1276,7 +1289,6 @@
         function scaleLobby() {
             const scale = gameSettings.scale;
             
-            // Устанавливаем отступ для статистики в лобби такой же как в игре
             if (lobbyStats) {
                 const topMargin = getSafeTopMargin();
                 lobbyStats.style.marginTop = `${topMargin}px`;
@@ -1296,7 +1308,6 @@
                 startButton.style.bottom = `${120 * scale}px`;
             }
             
-            // Масштабирование изображений статистики
             const coinImages = document.querySelectorAll('.coin-stat-image');
             coinImages.forEach(img => {
                 img.style.width = `${82 * scale}px`;
@@ -1315,13 +1326,11 @@
                 img.style.height = `${36 * scale}px`;
             });
             
-            // Масштабирование текста статистики - ВСЕ 22px
             const statValues = document.querySelectorAll('.stat-value');
             statValues.forEach(stat => {
                 stat.style.fontSize = `${22 * scale}px`;
             });
             
-            // Масштабирование позиции текста с учетом новых требований
             const coinStats = document.querySelectorAll('.coin-stat .stat-value');
             coinStats.forEach(stat => {
                 stat.style.right = `${14 * scale}px`;
@@ -1335,7 +1344,7 @@
                 stat.style.textAlign = 'center';
                 stat.style.left = '0';
                 stat.style.right = '0';
-                stat.style.top = `calc(50% + ${4 * scale}px)`; // Поднимаем с учетом масштаба
+                stat.style.top = `calc(50% + ${4 * scale}px)`;
                 stat.style.transform = 'none';
             });
             
@@ -1362,13 +1371,12 @@
             gameSettings.scaleY = containerHeight / gameSettings.baseHeight;
             gameSettings.scale = Math.min(gameSettings.scaleX, gameSettings.scaleY);
             
-            // Обновляем статус полноэкранного режима
             if (telegram.WebApp) {
                 gameSettings.isExpanded = telegram.WebApp.isExpanded || false;
+                gameSettings.isFullscreen = telegram.WebApp.isFullscreen || false;
                 
-                // Если Telegram не предоставляет safeAreaInset, используем fallback
                 if (!telegram.WebApp.safeAreaInset && gameSettings.isExpanded) {
-                    gameSettings.safeAreaTop = 40; // Фиксированный отступ для статус-бара
+                    gameSettings.safeAreaTop = 40;
                 } else if (telegram.WebApp.safeAreaInset) {
                     gameSettings.safeAreaTop = telegram.WebApp.safeAreaInset.top || 0;
                 }
@@ -1424,13 +1432,11 @@
         }
 
         async function init() {
-            // Проверяем поддержку canvas
             if (!canvas.getContext) {
                 alert('Ваш браузер не поддерживает HTML5 Canvas. Пожалуйста, обновите браузер.');
                 return;
             }
             
-            // Ожидаем загрузки изображений
             const imagePromises = Object.values(images).map(img => {
                 if (img.complete) return Promise.resolve();
                 return new Promise(resolve => {
@@ -1497,10 +1503,8 @@
             
             await loadProgress();
             
-            // Начинаем с лобби
             showLobby();
             
-            // Запускаем игровой цикл
             gameLoop();
             
             if (telegram.WebApp) {
@@ -1524,7 +1528,6 @@
             }
         }
 
-        // Запускаем игру когда DOM загружен
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
